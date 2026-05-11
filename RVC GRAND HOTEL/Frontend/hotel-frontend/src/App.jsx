@@ -80,9 +80,9 @@ function AppLayout({ children, onLogout, isAdmin }) {
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#f8f7f4" }}>
-      {/* SIDEBAR */}
-      <div style={styles.sidebar}>
+    <div style={{ display: "flex", height: "100vh", backgroundColor: "#f8f7f4", overflowY: "hidden"}}>
+      {/* SIDEBAR - Fixed Height with Overflow */}
+      <div style={{...styles.sidebar, overflowY: 'auto' , height: "100vh"}}>
         {/* Logo Section */}
         <div style={styles.logoSection}>
           <div style={styles.logoBox}>
@@ -99,13 +99,13 @@ function AppLayout({ children, onLogout, isAdmin }) {
                 to="/"
                 style={styles.navLink(location.pathname === "/")}
                 onMouseOver={(e) => {
-                  e.target.style.backgroundColor = "rgba(212,175,55,0.15)";
-                  e.target.style.borderLeftColor = "#d4af37";
+                  e.target.style.backgroundColor = "rgba(14,165,233,0.15)";
+                  e.target.style.borderLeftColor = "#0ea5e9";
                 }}
                 onMouseOut={(e) => {
                   if (location.pathname === "/") {
-                    e.target.style.backgroundColor = "rgba(212,175,55,0.15)";
-                    e.target.style.borderLeftColor = "#d4af37";
+                    e.target.style.backgroundColor = "rgba(14,165,233,0.15)";
+                    e.target.style.borderLeftColor = "#0ea5e9";
                   } else {
                     e.target.style.backgroundColor = "transparent";
                     e.target.style.borderLeftColor = "transparent";
@@ -119,11 +119,11 @@ function AppLayout({ children, onLogout, isAdmin }) {
                 to="/admin"
                 style={styles.navLink(location.pathname === "/admin")}
                 onMouseOver={(e) => {
-                  e.target.style.backgroundColor = "rgba(212,175,55,0.2)";
+                  e.target.style.backgroundColor = "rgba(14,165,233,0.2)";
                 }}
                 onMouseOut={(e) => {
                   if (location.pathname === "/admin") {
-                    e.target.style.backgroundColor = "rgba(212,175,55,0.15)";
+                    e.target.style.backgroundColor = "rgba(14,165,233,0.15)";
                   } else {
                     e.target.style.backgroundColor = "transparent";
                   }
@@ -138,10 +138,10 @@ function AppLayout({ children, onLogout, isAdmin }) {
               to="/"
               style={styles.navLink(location.pathname === "/")}
               onMouseOver={(e) => {
-                e.target.style.backgroundColor = "rgba(212,175,55,0.2)";
+                e.target.style.backgroundColor = "rgba(14,165,233,0.2)";
               }}
               onMouseOut={(e) => {
-                e.target.style.backgroundColor = location.pathname === "/" ? "rgba(212,175,55,0.15)" : "transparent";
+                e.target.style.backgroundColor = location.pathname === "/" ? "rgba(14,165,233,0.15)" : "transparent";
               }}
             >
               <span style={{ marginRight: '12px' }}>🏠</span>
@@ -227,20 +227,20 @@ function AppLayout({ children, onLogout, isAdmin }) {
 
 const styles = {
   sidebar: {
-    width: 320,
-    background: "linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%)",
+    width: 320 ,
+    background: "linear-gradient(180deg, #0369a1 0%, #0ea5e9 100%)",
     color: "#fff",
     padding: 0,
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '4px 0 20px rgba(0,0,0,0.3)',
-    borderRight: "1px solid rgba(212,175,55,0.2)",
+    boxShadow: '4px 0 20px rgba(2,6,23,0.12)',
+    borderRight: "1px solid rgba(14,165,233,0.12)",
   },
   logoSection: {
     padding: '40px 20px',
     textAlign: 'center',
-    borderBottom: '2px solid rgba(212,175,55,0.3)',
-    background: "linear-gradient(180deg, rgba(212,175,55,0.1) 0%, rgba(212,175,55,0.05) 100%)",
+    borderBottom: '2px solid rgba(255,255,255,0.1)',
+    background: "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 100%)",
   },
   logoBox: {
     fontSize: '48px',
@@ -253,8 +253,8 @@ const styles = {
   hotelName: {
     margin: '0 0 5px 0',
     fontSize: '26px',
-    fontWeight: '700',
-    color: '#d4af37',
+    fontWeight: '800',
+    color: '#fff',
     letterSpacing: '2px',
   },
   tagline: {
@@ -288,25 +288,25 @@ const styles = {
   }),
   userSection: {
     padding: '30px 20px',
-    borderTop: '2px solid rgba(212,175,55,0.2)',
-    background: "linear-gradient(180deg, rgba(212,175,55,0.05) 0%, transparent 100%)",
+    borderTop: '2px solid rgba(14,165,233,0.12)',
+    background: "linear-gradient(180deg, rgba(14,165,233,0.03) 0%, transparent 100%)",
   },
   userCard: {
     display: 'flex',
     alignItems: 'center',
     gap: '15px',
     padding: '15px',
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: 'rgba(14,165,233,0.06)',
     borderRadius: '10px',
     marginBottom: '15px',
-    border: '1px solid rgba(212,175,55,0.2)',
+    border: '1px solid rgba(14,165,233,0.12)',
   },
   userAvatar: {
     width: '50px',
     height: '50px',
     borderRadius: '50%',
-    backgroundColor: '#d4af37',
-    color: '#1a1a1a',
+    background: 'linear-gradient(135deg,#60a5fa,#06b6d4)',
+    color: '#fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

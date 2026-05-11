@@ -168,7 +168,33 @@ export default function AdminDashboard() {
             }}
             onMouseOut={(e) => {
               if (activeTab !== 'rooms') e.target.style.backgroundColor = '#fff';
+              {bookings.map((booking) => (
+  <div key={booking.id} style={styles.bookingCard}>
+    
+    <h3>{booking.guest_name}</h3>
+
+    <p>ห้อง: {booking.room_number}</p>
+
+    <p>ชำระเงิน: {booking.payment_method}</p>
+
+    {/* แสดงสลิป */}
+    {booking.slip_image && (
+      <img
+        src={`http://localhost:3000/uploads/${booking.slip_image}`}
+        alt="slip"
+        style={{
+          width: "220px",
+          borderRadius: "10px",
+          marginTop: "10px",
+          border: "1px solid #ccc",
+        }}
+      />
+    )}
+
+  </div>
+))}
             }}
+            
           >
             🛏️ จัดการห้อง
           </button>

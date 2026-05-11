@@ -16,6 +16,8 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
           <thead>
             <tr style={styles.headerRow}>
               <th style={styles.th}>👤 ชื่อผู้เข้าพัก</th>
+              <th style={styles.th}>💳 วิธีชำระเงิน</th>
+              <th style={styles.th}>🖼️ หลักฐานการชำระเงิน</th>
               <th style={styles.th}>🛏️ ห้อง</th>
               <th style={styles.th}>📋 ประเภท</th>
               <th style={styles.th}>📅 เข้าพัก</th>
@@ -37,6 +39,19 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? "#f9fafb" : "#fff"}
               >
                 <td style={styles.td}><strong>{b.guest_name}</strong></td>
+                <td style={styles.td}>{b.payment_method}</td>
+                <td>
+                  {b.slip_image && (
+                    <img
+                      src={`http://localhost:3000/uploads/${b.slip_image}`}
+                      alt="slip"
+                      style={{
+                        width: "180px",
+                        borderRadius: "10px",
+                      }}
+                    />
+                  )}
+                </td>
                 <td style={styles.td}>{b.room_number || b.room_id}</td>
                 <td style={styles.td}>{b.room_type || '-'}</td>
                 <td style={styles.td}>{formatDate(b.check_in)}</td>

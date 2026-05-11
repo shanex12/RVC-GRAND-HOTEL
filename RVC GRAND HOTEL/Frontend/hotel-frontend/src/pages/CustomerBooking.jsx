@@ -5,6 +5,8 @@ import { getRooms, createBooking } from "../api/booking";
 export default function CustomerBooking() {
   const { user, token, refreshUser } = useAuth();
   const [rooms, setRooms] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState("credit");
+  const [slip, setSlip] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all"); // all | single | double
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -12,11 +14,14 @@ export default function CustomerBooking() {
   const [guestName, setGuestName] = useState("");
   const [checkInDate, setCheckInDate] = useState("");
   const [checkOutDate, setCheckOutDate] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState('credit');
   const [loading, setLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingId, setBookingId] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditAmount, setCreditAmount] = useState(100);
+  const [qrScanResult, setQrScanResult] = useState("");
 
   useEffect(() => {
     loadRooms();
@@ -101,18 +106,22 @@ export default function CustomerBooking() {
       setBookingError("วันเช็คเอาท์ต้องอยู่หลังวันเช็คอิน");
       return;
     }
+    if (paymentMethod === "qr" && !slip) {
+      alert("กรุณาแนบสลิป");
+      return;
+    }
 
     setLoading(true);
     try {
-      const payload = {
+      const result = await createBooking({
         guest_name: guestName,
         room_id: selectedRoom.id,
         check_in: checkInDate,
         check_out: checkOutDate,
         payment_method: paymentMethod,
-      };
+        slip: slip,
+      });
 
-      const result = await createBooking(payload, token);
       setBookingId(result.id);
       setBookingSuccess(true);
       if (paymentMethod === 'credit') {
@@ -135,6 +144,34 @@ export default function CustomerBooking() {
     }
   };
 
+  const handleTopUpCredit = async () => {
+    if (creditAmount <= 0) {
+      alert("กรุณากรอกจำนวนเงินให้ถูกต้อง");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // สําหรับ QR code payments
+      const response = await fetch('http://localhost:3000/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        // จำลองการเติมเครดิต
+        await refreshUser();
+        setShowCreditModal(false);
+        setCreditAmount(100);
+        alert(`✓ เติมเครดิต ฿${creditAmount} สำเร็จ!`);
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      alert("เติมเครดิตไม่สำเร็จ");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.wrapper}>
@@ -145,12 +182,35 @@ export default function CustomerBooking() {
           </div>
 
           <div style={styles.headerRight}>
-            <div style={styles.userCard}>
-              <div style={styles.userAvatar}>{(user?.name || user?.role).slice(0,1).toUpperCase()}</div>
-              <div style={styles.userInfo}>
-                <div style={styles.userName}>{user?.name || user?.username}</div>
-                <div style={styles.userCredit}>เครดิต: <strong>฿{user?.credit ?? 0}</strong></div>
-              </div>
+            <div style={{...styles.userCard, position: 'relative'}}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{...styles.userCardBtn}}>
+                <div style={styles.userAvatar}>{(user?.name || user?.role).slice(0,1).toUpperCase()}</div>
+                <div style={styles.userInfo}>
+                  <div style={styles.userName}>{user?.name || user?.username}</div>
+                  <div style={styles.userCredit}>เครดิต: <strong>฿{user?.credit ?? 0}</strong></div>
+                </div>
+                <div style={styles.dropdownArrow}>▼</div>
+              </button>
+
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div style={styles.dropdownMenu}>
+                  <button
+                    style={styles.dropdownItem}
+                    onClick={() => {
+                      setShowCreditModal(true);
+                      setShowUserMenu(false);
+                    }}
+                  >
+                    💳 เติมเครดิต
+                  </button>
+                  <button style={{...styles.dropdownItem, borderTop: '1px solid #e0f2fe'}}>
+                    👤 โปรไฟล์
+                  </button>
+                </div>
+              )}
             </div>
 
             <div style={styles.searchBox}>
@@ -233,7 +293,6 @@ export default function CustomerBooking() {
           </div>
         )}
       </div>
-
       {/* Booking Modal */}
       {showBookingModal && selectedRoom && (
         <div style={styles.modalOverlay} onClick={() => setShowBookingModal(false)}>
@@ -295,13 +354,33 @@ export default function CustomerBooking() {
 
               {paymentMethod === 'qr' && (
                 <div style={styles.qrBox}>
-                  <p style={styles.qrLabel}>สแกน QR เพื่อยืนยันการจอง</p>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`BOOK|${selectedRoom.id}|${guestName || 'guest'}|${checkInDate}|${checkOutDate}`)}`}
-                    alt="QR Code"
-                    style={styles.qrImage}
+                  <input
+                    type="radio"
+                    value="qr"
+                    checked={paymentMethod === "qr"}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
                   />
-                  <p style={styles.qrHint}>สแกนด้วยมือถือหรือกดปุ่มยืนยันเพื่อจองผ่าน QR</p>
+                  QR พร้อมเพย์
+                  {paymentMethod === "qr" && (
+                <div style={{ marginTop: 10 }}>
+                  <img
+                    src="/payment/myqr.jpg"
+                    alt="QR"
+                    style={{
+                      width: 220,
+                      borderRadius: 10,
+                    }}
+                  />
+
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setSlip(e.target.files[0])}
+                    style={{ marginTop: 10 , textAlign: 'center'}}
+                  />
+                  <p>กรุณาแนบหลักฐานการชำระเงิน</p>
+                </div>
+              )}
                 </div>
               )}
 
@@ -388,15 +467,87 @@ export default function CustomerBooking() {
           </div>
         </div>
       )}
+
+      {/* Credit Top-up Modal */}
+      {showCreditModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowCreditModal(false)}>
+          <div style={{...styles.modal}} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>💳 เติมเครดิต</h2>
+              <button
+                style={styles.closeButton}
+                onClick={() => setShowCreditModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={styles.modalBody}>
+              <div style={styles.creditTopupBox}>
+                <p style={{margin: '0 0 10px 0', color: '#0f172a', fontWeight: 700}}>จำนวนเงินที่ต้องการเติม</p>
+                <div style={{display: 'flex', gap: '8px', marginBottom: '15px', flexWrap: 'wrap'}}>
+                  {[100, 200, 500, 1000].map(amt => (
+                    <button
+                      key={amt}
+                      onClick={() => setCreditAmount(amt)}
+                      style={{
+                        ...styles.creditAmountBtn,
+                        ...(creditAmount === amt ? styles.creditAmountBtnActive : {})
+                      }}
+                    >
+                      ฿{amt}
+                    </button>
+                  ))}
+                </div>
+
+                <label style={styles.label}>หรือกรอกจำนวนเองด้านล่าง</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                  style={styles.input}
+                />
+
+                <div style={styles.qrTopupBox}>
+                  <p style={{margin: '0 0 12px 0', fontSize: 14, fontWeight: 700, color: '#0f172a'}}>สแกน QR Code</p>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`TOPUP|${creditAmount}|${user?.id}`)}`}
+                    alt="QR Code"
+                    style={{width: '100%', maxWidth: '200px', borderRadius: '10px'}}
+                  />
+                  <p style={{margin: '12px 0 0 0', fontSize: 12, color: '#0369a1', textAlign: 'center'}}>สแกนด้วยแอปพ์หรือกดปุ่มยืนยันด้านล่าง</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                style={styles.cancelButton}
+                onClick={() => setShowCreditModal(false)}
+              >
+                ยกเลิก
+              </button>
+              <button
+                style={styles.confirmButton}
+                onClick={handleTopUpCredit}
+                disabled={loading}
+              >
+                {loading ? "⏳ กำลังดำเนินการ..." : `✓ ยืนยันเติม ฿${creditAmount}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles = {
   container: {
-    padding: "40px",
-    backgroundColor: "#f8f7f4",
-    minHeight: "100vh",
+    padding: "25px",
+    backgroundColor: "transparent",
+    minHeight: "100%",
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
@@ -575,30 +726,15 @@ const styles = {
     fontSize: "16px",
     fontWeight: "600",
     cursor: "not-allowed",
-  modal: {
-    backgroundColor: "#ffffff",
-    borderRadius: "16px",
-    boxShadow: "0 30px 80px rgba(2,6,23,0.18)",
-    width: "90%",
-    maxWidth: "560px",
-    maxHeight: "90vh",
-    overflow: "auto",
+  },
+  emptyBox: {
+    padding: "40px",
+    backgroundColor: "#fff",
+    borderRadius: "12px",
+    textAlign: "center",
+    color: "#666",
+    fontSize: "18px",
     border: "1px solid rgba(14,165,233,0.12)",
-  },
-  modalHeader: {
-    padding: "25px",
-    borderBottom: "2px solid rgba(14,165,233,0.06)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    background: "linear-gradient(90deg, rgba(14,165,233,0.03) 0%, rgba(255,255,255,0.6) 100%)",
-  },
-  modalTitle: {
-    fontSize: "22px",
-    fontWeight: "800",
-    color: "#073b4c",
-    margin: 0,
-  },
     boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
     width: "90%",
     maxWidth: "500px",
@@ -607,6 +743,7 @@ const styles = {
     border: "1px solid rgba(212,175,55,0.2)",
   },
   modalHeader: {
+    center: "center",
     padding: "25px",
     borderBottom: "2px solid rgba(212,175,55,0.2)",
     display: "flex",
@@ -869,5 +1006,72 @@ const styles = {
     color: "#059669",
     fontStyle: "italic",
     marginTop: "15px",
+  },
+  userCardBtn: {
+    background: 'none',
+    border: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  dropdownArrow: {
+    fontSize: '12px',
+    color: '#0369a1',
+    fontWeight: 700,
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: '8px',
+    background: '#fff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '10px',
+    boxShadow: '0 18px 50px rgba(2,6,23,0.1)',
+    minWidth: '180px',
+    zIndex: 1001,
+  },
+  dropdownItem: {
+    width: '100%',
+    padding: '12px 16px',
+    background: 'none',
+    border: 'none',
+    textAlign: 'left',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#0f172a',
+    transition: 'background 0.2s',
+  },
+  creditTopupBox: {
+    padding: '15px',
+    backgroundColor: '#eff6ff',
+    borderRadius: '12px',
+    border: '1px solid #bfdbfe',
+  },
+  creditAmountBtn: {
+    padding: '8px 14px',
+    borderRadius: '10px',
+    border: '2px solid #e0f2fe',
+    background: '#fff',
+    cursor: 'pointer',
+    fontWeight: 700,
+    color: '#0369a1',
+    transition: 'all 0.2s',
+  },
+  creditAmountBtnActive: {
+    background: 'linear-gradient(90deg,#0369a1,#0ea5e9)',
+    border: '2px solid #0369a1',
+    color: '#fff',
+  },
+  qrTopupBox: {
+    marginTop: '15px',
+    padding: '15px',
+    backgroundColor: '#f0f9ff',
+    borderRadius: '10px',
+    border: '1px solid #bfdbfe',
+    textAlign: 'center',
   },
 };
