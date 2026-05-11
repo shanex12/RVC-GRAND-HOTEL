@@ -1,0 +1,108 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db');
+
+// GET /api/rooms
+router.get('/', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM rooms');
+    res.json(rows || []);
+  } catch (err) {
+    console.error('Error fetching rooms:', err.message);
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
+// POST /api/rooms - สร้างห้องใหม่
+router.post('/', async (req, res) => {
+  const { name, room_type, capacity, price } = req.body;
+
+  // ตรวจสอบข้อมูล
+  if (!name || !room_type || !capacity || !price) {
+    return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบ' });
+  }
+
+  try {
+    // ตรวจสอบว่าห้องนี้มีอยู่แล้วหรือไม่
+    const [existing] = await db.query('SELECT id FROM rooms WHERE name = ?', [name]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'ห้องนี้มีอยู่แล้ว' });
+    }
+
+    // สร้างห้องใหม่
+    const result = await db.query(
+      'INSERT INTO rooms (name, room_type, capacity, price, status) VALUES (?, ?, ?, ?, ?)',
+      [name, room_type, capacity, price, 'available']
+    );
+
+    console.log('✅ Room created:', result[0].insertId);
+    res.json({ id: result[0].insertId, message: 'ห้องถูกสร้างสำเร็จ' });
+  } catch (err) {
+    console.error('❌ Create room error:', err.message);
+    res.status(500).json({ error: 'สร้างห้องไม่สำเร็จ', details: err.message });
+  }
+});
+
+// PUT /api/rooms/:id - แก้ไขห้อง
+router.put('/:id', async (req, res) => {
+  const id = req.params.id;
+  const { name, room_type, capacity, price } = req.body;
+
+  if (!name || !room_type || !capacity || !price) {
+    return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบ' });
+  }
+
+  try {
+    // ตรวจสอบว่ามีห้องนี้หรือไม่
+    const [rooms] = await db.query('SELECT id FROM rooms WHERE id = ?', [id]);
+    if (rooms.length === 0) {
+      return res.status(404).json({ error: 'ห้องไม่พบ' });
+    }
+
+    // ตรวจสอบว่าเลขห้องซ้ำ (ยกเว้นห้องปัจจุบัน)
+    const [existing] = await db.query('SELECT id FROM rooms WHERE name = ? AND id != ?', [name, id]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'เลขห้องนี้ใช้งานแล้ว' });
+    }
+
+    // แก้ไขห้อง
+    await db.query(
+      'UPDATE rooms SET name = ?, room_type = ?, capacity = ?, price = ? WHERE id = ?',
+      [name, room_type, capacity, price, id]
+    );
+
+    console.log('✅ Room updated:', id);
+    res.json({ message: 'แก้ไขห้องสำเร็จ' });
+  } catch (err) {
+    console.error('❌ Update room error:', err.message);
+    res.status(500).json({ error: 'แก้ไขห้องไม่สำเร็จ', details: err.message });
+  }
+});
+
+// DELETE /api/rooms/:id - ลบห้อง
+router.delete('/:id', async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    // ตรวจสอบว่ามีการจองอยู่หรือไม่
+    const [bookings] = await db.query(
+      'SELECT id FROM bookings WHERE room_id = ? AND status != ?',
+      [id, 'checked_out']
+    );
+
+    if (bookings.length > 0) {
+      return res.status(400).json({ error: 'ไม่สามารถลบห้องนี้ได้เพราะมีการจองอยู่' });
+    }
+
+    // ลบห้อง
+    await db.query('DELETE FROM rooms WHERE id = ?', [id]);
+
+    console.log('✅ Room deleted:', id);
+    res.json({ message: 'ลบห้องสำเร็จ' });
+  } catch (err) {
+    console.error('❌ Delete room error:', err.message);
+    res.status(500).json({ error: 'ลบห้องไม่สำเร็จ', details: err.message });
+  }
+});
+
+module.exports = router;
