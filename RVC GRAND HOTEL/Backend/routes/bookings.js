@@ -1,12 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'rvc_hotel_secret_key_2026';
+const multer = require("multer");
+const path = require("path");
+const db = require('../db');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage });
+
+
 
 // ===== CREATE BOOKING =====
-router.post('/', async (req, res) => {
+router.post('/', upload.single('slip'), async (req, res) => {
 const { guest_name, room_id, check_in, check_out, payment_method } = req.body;
+const slip_path = req.file ? req.file.filename : null;
 
   if (!guest_name || !room_id) {
     return res.status(400).json({ error: 'ต้องกรอกชื่อและเลือกห้อง' });
@@ -77,9 +93,26 @@ const { guest_name, room_id, check_in, check_out, payment_method } = req.body;
 
     // สร้าง booking
     const result = await db.query(
-      `INSERT INTO bookings (guest_name, room_id, check_in, check_out, status) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [guest_name, room_id, check_in || null, check_out || null, 'booked']
+      `
+      INSERT INTO bookings
+      (
+        guest_name,
+        room_id,
+        check_in,
+        check_out,
+        payment_method,
+        slip_image
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [
+        guest_name,
+        room_id,
+        check_in,
+        check_out,
+        payment_method,
+        slip_path
+      ]
     );
 
     // อัพเดท status ห้องเป็น occupied
