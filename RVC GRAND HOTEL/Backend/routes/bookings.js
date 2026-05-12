@@ -2,97 +2,162 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = 'rvc_hotel_secret_key_2026';
-const multer = require("multer");
-const path = require("path");
 const db = require('../db');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({ storage });
 
 
 
 // ===== CREATE BOOKING =====
-router.post('/', upload.single('slip'), async (req, res) => {
-const { guest_name, room_id, check_in, check_out, payment_method } = req.body;
-const slip_path = req.file ? req.file.filename : null;
+router.post('/', async (req, res) => {
+
+  const {
+    guest_name,
+    room_id,
+    check_in,
+    check_out
+  } = req.body;
 
   if (!guest_name || !room_id) {
-    return res.status(400).json({ error: 'ต้องกรอกชื่อและเลือกห้อง' });
+    return res.status(400).json({
+      error: 'ต้องกรอกชื่อและเลือกห้อง'
+    });
   }
 
   try {
-    // ตรวจสอบว่าห้องว่างหรือไม่
+
+    // ===== CHECK TOKEN =====
+
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        error: 'กรุณาเข้าสู่ระบบ'
+      });
+    }
+
+    let decoded;
+
+    try {
+
+      decoded = jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    } catch {
+
+      return res.status(401).json({
+        error: 'Token ไม่ถูกต้อง'
+      });
+    }
+
+    // ===== CHECK ROOM =====
+
     const [rooms] = await db.query(
-      'SELECT status FROM rooms WHERE id = ?',
+      'SELECT * FROM rooms WHERE id = ?',
       [room_id]
     );
 
     if (rooms.length === 0) {
-      return res.status(404).json({ error: 'ห้องไม่พบในระบบ' });
+      return res.status(404).json({
+        error: 'ไม่พบห้อง'
+      });
     }
 
-    // ถ้ามีวันที่ ตรวจสอบการจองที่ชนกัน
-    if (check_in && check_out) {
-      const [conflicts] = await db.query(
-        `SELECT id FROM bookings 
-         WHERE room_id = ? 
-         AND status != 'checked_out'
-         AND (
-           (check_in <= ? AND check_out > ?) OR
-           (check_in < ? AND check_out >= ?) OR
-           (check_in >= ? AND check_out <= ?)
-         )`,
-        [room_id, check_out, check_in, check_out, check_in, check_in, check_out]
-      );
+    // ===== CHECK DATE CONFLICT =====
 
-      if (conflicts.length > 0) {
-        return res.status(400).json({ error: 'ห้องนี้ถูกจองในช่วงวันที่ระบุแล้ว' });
-      }
+    const [conflicts] = await db.query(
+      `
+      SELECT id
+      FROM bookings
+      WHERE room_id = ?
+      AND status != 'checked_out'
+      AND (
+        (check_in <= ? AND check_out > ?)
+        OR
+        (check_in < ? AND check_out >= ?)
+        OR
+        (check_in >= ? AND check_out <= ?)
+      )
+      `,
+      [
+        room_id,
+        check_out,
+        check_in,
+        check_out,
+        check_in,
+        check_in,
+        check_out
+      ]
+    );
+
+    if (conflicts.length > 0) {
+      return res.status(400).json({
+        error: 'ห้องนี้ถูกจองแล้ว'
+      });
     }
 
-    const [roomRows] = await db.query('SELECT price FROM rooms WHERE id = ?', [room_id]);
-    if (roomRows.length === 0) {
-      return res.status(404).json({ error: 'ห้องไม่พบในระบบ' });
+    // ===== CALCULATE PRICE =====
+
+    const roomPrice = Number(
+      rooms[0].price
+    );
+
+    const nights = Math.max(
+      1,
+      Math.round(
+        (
+          new Date(check_out)
+          -
+          new Date(check_in)
+        )
+        /
+        (1000 * 60 * 60 * 24)
+      )
+    );
+
+    const totalAmount =
+      roomPrice * nights;
+
+    // ===== CHECK CREDIT =====
+
+    const [users] = await db.query(
+      `
+      SELECT credit
+      FROM users
+      WHERE id = ?
+      `,
+      [decoded.id]
+    );
+
+    const userCredit = Number(
+      users[0].credit || 0
+    );
+
+    if (userCredit < totalAmount) {
+
+      return res.status(400).json({
+        error: 'เครดิตไม่เพียงพอ'
+      });
+
     }
-    const roomPrice = roomRows[0].price;
-    const nights = check_in && check_out ? Math.max(1, Math.round((new Date(check_out) - new Date(check_in)) / (1000 * 60 * 60 * 24))) : 1;
-    const totalAmount = roomPrice * nights;
 
-    if (payment_method === 'credit') {
-      const token = req.headers.authorization?.split(' ')[1];
-      if (!token) {
-        return res.status(401).json({ error: 'ต้องเข้าสู่ระบบเพื่อใช้เครดิต' });
-      }
+    // ===== CUT CREDIT =====
 
-      let decoded;
-      try {
-        decoded = jwt.verify(token, JWT_SECRET);
-      } catch (tokenErr) {
-        return res.status(401).json({ error: 'Token ไม่ถูกต้อง' });
-      }
+    await db.query(
+      `
+      UPDATE users
+      SET credit = credit - ?
+      WHERE id = ?
+      `,
+      [
+        totalAmount,
+        decoded.id
+      ]
+    );
 
-      const userId = decoded.id;
-      const [userRows] = await db.query('SELECT credit FROM users WHERE id = ?', [userId]);
-      if (userRows.length === 0) {
-        return res.status(404).json({ error: 'ไม่พบผู้ใช้' });
-      }
-      const currentCredit = Number(userRows[0].credit || 0);
-      if (currentCredit < totalAmount) {
-        return res.status(400).json({ error: 'เครดิตไม่เพียงพอ' });
-      }
-      await db.query('UPDATE users SET credit = ? WHERE id = ?', [currentCredit - totalAmount, userId]);
-    }
+    // ===== CREATE BOOKING =====
 
-    // สร้าง booking
-    const result = await db.query(
+    const [result] = await db.query(
       `
       INSERT INTO bookings
       (
@@ -100,33 +165,43 @@ const slip_path = req.file ? req.file.filename : null;
         room_id,
         check_in,
         check_out,
-        payment_method,
-        slip_image
+        status
       )
-      VALUES (?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?)
       `,
       [
         guest_name,
         room_id,
         check_in,
         check_out,
-        payment_method,
-        slip_path
+        'booked'
       ]
     );
 
-    // อัพเดท status ห้องเป็น occupied
+    // ===== UPDATE ROOM =====
+
     await db.query(
-      'UPDATE rooms SET status = ? WHERE id = ?',
-      ['occupied', room_id]
+      `
+      UPDATE rooms
+      SET status = 'occupied'
+      WHERE id = ?
+      `,
+      [room_id]
     );
 
-    console.log('✅ Booking created:', result[0].insertId);
-    res.json({ id: result[0].insertId, message: 'Booking created' });
+    res.json({
+      success: true,
+      id: result.insertId
+    });
+
   } catch (err) {
-    console.error('❌ Create booking error:', err);
-    if (err && err.stack) console.error(err.stack);
-    res.status(500).json({ error: 'จองไม่สำเร็จ', details: err.message || 'เกิดข้อผิดพลาด' });
+
+    console.error(err);
+
+    res.status(500).json({
+      error: 'จองไม่สำเร็จ',
+      details: err.message
+    });
   }
 });
 
