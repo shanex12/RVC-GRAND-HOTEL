@@ -23,29 +23,28 @@ export const getRooms = async () => {
   return await res.json();
 };
 
-export const createBooking = async (data) => {
-  const formData = new FormData();
+export async function createBooking(data) {
 
-  formData.append("guest_name", data.guest_name);
-  formData.append("room_id", data.room_id);
-  formData.append("check_in", data.check_in);
-  formData.append("check_out", data.check_out);
-  formData.append("payment_method", data.payment_method);
+  const token = localStorage.getItem("token");
 
-  if (data.slip) {
-    formData.append("slip", data.slip);
-  }
+  const res = await fetch(
+    "http://localhost:3000/api/bookings",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
 
-  const res = await fetch(`${API}/bookings`, {
-    method: "POST",
-    body: formData,
-  });
+      body: JSON.stringify(data),
+    }
+  );
 
   const result = await res.json();
 
   if (!res.ok) {
-    throw new Error(result.error || "จองไม่สำเร็จ");
+    throw new Error(result.error);
   }
 
   return result;
-};
+}

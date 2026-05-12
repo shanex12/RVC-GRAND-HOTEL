@@ -5,8 +5,6 @@ import { getRooms, createBooking } from "../api/booking";
 export default function CustomerBooking() {
   const { user, token, refreshUser } = useAuth();
   const [rooms, setRooms] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState("credit");
-  const [slip, setSlip] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all"); // all | single | double
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -21,7 +19,8 @@ export default function CustomerBooking() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [creditAmount, setCreditAmount] = useState(100);
-  const [qrScanResult, setQrScanResult] = useState("");
+  const [topupSlip, setTopupSlip] = useState(null);
+  const [topupSlipPreview, setTopupSlipPreview] = useState("");
 
   useEffect(() => {
     loadRooms();
@@ -88,87 +87,94 @@ export default function CustomerBooking() {
 
   const handleSelectRoom = (room) => {
     setSelectedRoom(room);
-    setPaymentMethod('credit');
     setShowBookingModal(true);
     setGuestName("");
     setCheckInDate("");
     setCheckOutDate("");
   };
 
-  const handleBooking = async () => {
-    setBookingError("");
-    if (!guestName || !checkInDate || !checkOutDate || !selectedRoom) {
-      setBookingError("กรุณากรอกข้อมูลให้ครบ");
-      return;
-    }
+    const handleBooking = async () => {
+      setBookingError("");
+      if (!guestName || !checkInDate || !checkOutDate || !selectedRoom) {
+        setBookingError("กรุณากรอกข้อมูลให้ครบ");
+        return;
+      }
 
-    if (new Date(checkInDate) >= new Date(checkOutDate)) {
-      setBookingError("วันเช็คเอาท์ต้องอยู่หลังวันเช็คอิน");
-      return;
-    }
-    if (paymentMethod === "qr" && !slip) {
-      alert("กรุณาแนบสลิป");
-      return;
-    }
+      if (new Date(checkInDate) >= new Date(checkOutDate)) {
+        setBookingError("วันเช็คเอาท์ต้องอยู่หลังวันเช็คอิน");
+        return;
+      }
 
     setLoading(true);
+
     try {
       const result = await createBooking({
         guest_name: guestName,
         room_id: selectedRoom.id,
         check_in: checkInDate,
         check_out: checkOutDate,
-        payment_method: paymentMethod,
-        slip: slip,
       });
 
       setBookingId(result.id);
       setBookingSuccess(true);
-      if (paymentMethod === 'credit') {
-        refreshUser();
-      }
+
+      refreshUser();
+
       setTimeout(() => {
         setShowBookingModal(false);
-        setSelectedRoom(null);
-        setGuestName("");
-        setCheckInDate("");
-        setCheckOutDate("");
         setBookingSuccess(false);
         loadRooms();
-      }, 2000);
+      }, 1500);
+
     } catch (err) {
-      console.error("BOOKING ERROR:", err.message);
-      setBookingError(err.message || "เกิดข้อผิดพลาด");
+      setBookingError(err.message || "จองไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
   };
 
   const handleTopUpCredit = async () => {
-    if (creditAmount <= 0) {
-      alert("กรุณากรอกจำนวนเงินให้ถูกต้อง");
+
+    if (!creditAmount || !topupSlip) {
+      alert("กรุณาแนบสลิป");
       return;
     }
-    
-    setLoading(true);
-    try {
-      // สําหรับ QR code payments
-      const response = await fetch('http://localhost:3000/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        // จำลองการเติมเครดิต
-        await refreshUser();
-        setShowCreditModal(false);
-        setCreditAmount(100);
-        alert(`✓ เติมเครดิต ฿${creditAmount} สำเร็จ!`);
+
+  try {
+
+      const formData = new FormData();
+
+      formData.append("amount", creditAmount);
+      formData.append("slip", topupSlip);
+
+      const res = await fetch(
+        "http://localhost:3000/api/topups",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "เติมเครดิตไม่สำเร็จ");
+        return;
       }
+
+      alert("ส่งคำขอเติมเครดิตแล้ว");
+
+      setShowCreditModal(false);
+
+      setTopupSlip(null);
+      setTopupSlipPreview("");
+
     } catch (err) {
-      console.error("Error:", err);
-      alert("เติมเครดิตไม่สำเร็จ");
-    } finally {
-      setLoading(false);
+      console.error(err);
+      alert("เกิดข้อผิดพลาด");
     }
   };
 
@@ -329,60 +335,8 @@ export default function CustomerBooking() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>💳 วิธีชำระเงิน</label>
-                <div style={styles.paymentOptionBox}>
-                  <button
-                    style={paymentMethod === 'credit' ? {...styles.paymentOption, ...styles.paymentOptionActive} : styles.paymentOption}
-                    onClick={() => setPaymentMethod('credit')}
-                  >
-                    เครดิต
-                  </button>
-                  <button
-                    style={paymentMethod === 'qr' ? {...styles.paymentOption, ...styles.paymentOptionActive} : styles.paymentOption}
-                    onClick={() => setPaymentMethod('qr')}
-                  >
-                    QR Code
-                  </button>
-                </div>
-                {paymentMethod === 'credit' && (
-                  <div style={styles.creditInfo}>
-                    <p>เครดิตของคุณ: <strong>{user?.credit ?? 0} บาท</strong></p>
-                    <p style={styles.creditNote}>เครดิตจะถูกหักตามราคาทั้งหมดของการจอง</p>
-                  </div>
-                )}
+
               </div>
-
-              {paymentMethod === 'qr' && (
-                <div style={styles.qrBox}>
-                  <input
-                    type="radio"
-                    value="qr"
-                    checked={paymentMethod === "qr"}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                  />
-                  QR พร้อมเพย์
-                  {paymentMethod === "qr" && (
-                <div style={{ marginTop: 10 }}>
-                  <img
-                    src="/payment/myqr.jpg"
-                    alt="QR"
-                    style={{
-                      width: 220,
-                      borderRadius: 10,
-                    }}
-                  />
-
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setSlip(e.target.files[0])}
-                    style={{ marginTop: 10 , textAlign: 'center'}}
-                  />
-                  <p>กรุณาแนบหลักฐานการชำระเงิน</p>
-                </div>
-              )}
-                </div>
-              )}
 
               <div style={styles.dateGrid}>
                 <div style={styles.formGroup}>
@@ -510,13 +464,65 @@ export default function CustomerBooking() {
                 />
 
                 <div style={styles.qrTopupBox}>
-                  <p style={{margin: '0 0 12px 0', fontSize: 14, fontWeight: 700, color: '#0f172a'}}>สแกน QR Code</p>
+                  <p
+                    style={{
+                      margin: '0 0 12px 0',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: '#0f172a'
+                    }}
+                  >
+                    สแกน QR พร้อมเพย์
+                  </p>
+
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`TOPUP|${creditAmount}|${user?.id}`)}`}
-                    alt="QR Code"
-                    style={{width: '100%', maxWidth: '200px', borderRadius: '10px'}}
+                    src="/payment/promptpay-real.jpg"
+                    alt="QR พร้อมเพย์"
+                    style={{
+                      width: '220px',
+                      borderRadius: '12px',
+                      border: '1px solid #ccc',
+                      objectFit: 'cover'
+                    }}
                   />
-                  <p style={{margin: '12px 0 0 0', fontSize: 12, color: '#0369a1', textAlign: 'center'}}>สแกนด้วยแอปพ์หรือกดปุ่มยืนยันด้านล่าง</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+
+                      if (file) {
+                        setTopupSlip(file);
+                        setTopupSlipPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    style={{ marginTop: "15px" }}
+                  />
+
+                  {topupSlipPreview && (
+                    <img
+                      src={topupSlipPreview}
+                      alt="Slip Preview"
+                      style={{
+                        width: "100%",
+                        maxWidth: "220px",
+                        maxHeight: "250px",
+                        marginTop: "12px",
+                        borderRadius: "12px",
+                        border: "1px solid #ccc",
+                        objectFit: "contain",
+                      }}
+                    />
+                  )}
+                  <p
+                    style={{
+                      marginTop: '12px',
+                      fontSize: '13px',
+                      color: '#64748b'
+                    }}
+                  >
+                    กรุณาโอนตามจำนวนที่เลือก
+                  </p>
                 </div>
               </div>
             </div>
@@ -545,16 +551,14 @@ export default function CustomerBooking() {
 
 const styles = {
   container: {
-    padding: "25px",
-    backgroundColor: "transparent",
-    minHeight: "100%",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "center",
+    minHeight: "100vh",
+    backgroundColor: "#f8f7f4",
+    padding: "20px",
   },
   wrapper: {
     width: "100%",
     maxWidth: "1400px",
+    margin: "0 auto",
   },
   header: {
     textAlign: "center",
@@ -741,6 +745,28 @@ const styles = {
     maxHeight: "90vh",
     overflow: "auto",
     border: "1px solid rgba(212,175,55,0.2)",
+    },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+    overflowY: "auto",
+    padding: "20px",
+  },
+  modal: {
+    width: "90%",
+    maxWidth: "500px",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    backgroundColor: "#fff",
+    borderRadius: "16px",
   },
   modalHeader: {
     center: "center",

@@ -7,6 +7,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CustomerBooking from "./pages/CustomerBooking";
 import { AdminRoute, ProtectedRoute, PublicRoute } from "./components/ProtectedRoute";
 
+
 export default function App() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ function AppLayout({ children, onLogout, isAdmin }) {
   return (
     <div style={{ display: "flex", height: "100vh", backgroundColor: "#f8f7f4", overflowY: "hidden"}}>
       {/* SIDEBAR - Fixed Height with Overflow */}
-      <div style={{...styles.sidebar, overflowY: 'auto' , height: "100vh"}}>
+      <div style={{...styles.sidebar, maxHeight: '100vh', overflowY: 'auto' , height: "100vh"}}>
         {/* Logo Section */}
         <div style={styles.logoSection}>
           <div style={styles.logoBox}>

@@ -7,11 +7,15 @@ import AddRoomForm from '../components/AddRoomForm';
 import RoomList from '../components/RoomList';
 
 export default function AdminDashboard() {
+  const [topups, setTopups] = useState([]);
   const { token } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [users, setUsers] = useState([]);
   const [topUpAmounts, setTopUpAmounts] = useState({});
+  const [showMagicCredit, setShowMagicCredit] = useState(false);
+  const [magicUsername, setMagicUsername] = useState("");
+  const [magicAmount, setMagicAmount] = useState("");
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,7 +55,7 @@ export default function AdminDashboard() {
       setLoading(true);
       setError(null);
       try {
-        await Promise.all([loadBookings(), loadRooms(), loadUsers()]);
+        await Promise.all([loadBookings(), loadRooms(), loadUsers(), loadTopups()]);
       } catch (err) {
         console.error('Dashboard init error:', err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -97,6 +101,58 @@ export default function AdminDashboard() {
       loadUsers();
     } catch (err) {
       alert(err.message || 'เติมเครดิตไม่สำเร็จ');
+    }
+  };
+
+  const loadTopups = async () => {
+
+  const res = await fetch(
+    "http://localhost:3000/api/topups"
+  );
+
+  const data = await res.json();
+
+  setTopups(data);
+};
+
+  const handleMagicCredit = async () => {
+
+    if (!magicUsername || !magicAmount) {
+      alert("กรอกข้อมูลให้ครบ");
+      return;
+    }
+
+    try {
+
+      const foundUser = users.find(
+        (u) =>
+          u.username.toLowerCase() ===
+          magicUsername.toLowerCase()
+      );
+
+      if (!foundUser) {
+        alert("ไม่พบ username");
+        return;
+      }
+
+      await topUpCredit(
+        foundUser.id,
+        Number(magicAmount),
+        token
+      );
+
+      alert("เติมเครดิตสำเร็จ ✨");
+
+      setMagicUsername("");
+      setMagicAmount("");
+      setShowMagicCredit(false);
+
+      loadUsers();
+
+    } catch (err) {
+
+      alert("เติมเครดิตไม่สำเร็จ");
+
     }
   };
 
@@ -168,47 +224,16 @@ export default function AdminDashboard() {
             }}
             onMouseOut={(e) => {
               if (activeTab !== 'rooms') e.target.style.backgroundColor = '#fff';
-              {bookings.map((booking) => (
-  <div key={booking.id} style={styles.bookingCard}>
-    
-    <h3>{booking.guest_name}</h3>
-
-    <p>ห้อง: {booking.room_number}</p>
-
-    <p>ชำระเงิน: {booking.payment_method}</p>
-
-    {/* แสดงสลิป */}
-    {booking.slip_image && (
-      <img
-        src={`http://localhost:3000/uploads/${booking.slip_image}`}
-        alt="slip"
-        style={{
-          width: "220px",
-          borderRadius: "10px",
-          marginTop: "10px",
-          border: "1px solid #ccc",
-        }}
-      />
-    )}
-
-  </div>
-))}
             }}
             
           >
             🛏️ จัดการห้อง
           </button>
           <button
-            onClick={() => setActiveTab('credits')}
-            style={styles.tabButton(activeTab === 'credits')}
-            onMouseOver={(e) => {
-              if (activeTab !== 'credits') e.target.style.backgroundColor = '#f0f0f0';
-            }}
-            onMouseOut={(e) => {
-              if (activeTab !== 'credits') e.target.style.backgroundColor = '#fff';
-            }}
+            onClick={() => setActiveTab('topups')}
+            style={styles.tabButton(activeTab === 'topups')}
           >
-            💳 เครดิตผู้ใช้
+            💰 เติมเครดิต ({topups.filter(t => t.status === 'pending').length})
           </button>
         </div>
 
@@ -250,40 +275,132 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+        
 
-        {/* Credit Tab */}
-        {activeTab === 'credits' && (
+        {/* Credits Tab */}
+        {activeTab === 'topups' && (
+
           <div style={styles.tabContent}>
-            <h2 style={styles.sectionTitle}>💳 เติมเครดิตผู้ใช้</h2>
-            <div style={styles.creditGrid}>
-              {users.map((userItem) => (
-                <div key={userItem.id} style={styles.creditCard}>
-                  <p style={styles.creditUserName}>{userItem.username} ({userItem.role})</p>
-                  <p style={styles.creditBalance}>เครดิต: <strong>{userItem.credit ?? 0} บาท</strong></p>
-                  <div style={styles.creditRow}>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="จำนวนเครดิต"
-                      value={topUpAmounts[userItem.id] || ''}
-                      onChange={(e) => setTopUpAmounts((prev) => ({ ...prev, [userItem.id]: e.target.value }))}
-                      style={styles.creditInput}
-                    />
-                    <button
-                      style={styles.creditButton}
-                      onClick={() => handleTopUp(userItem.id)}
-                    >
-                      เติมเครดิต
-                    </button>
-                  </div>
+
+            <div style={styles.topupHeader}>
+            <h2>รายการเติมเครดิต</h2>
+
+            <button
+              style={styles.magicBtn}
+              onClick={() => setShowMagicCredit(true)}
+            >
+              ✨ เสกเครดิต
+            </button>
+            {showMagicCredit && (
+
+            <div style={styles.popupOverlay}>
+
+              <div style={styles.popupBox}>
+
+                <h2 style={styles.popupTitle}>
+                  ✨ เพิ่มเครดิต
+                </h2>
+
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={magicUsername}
+                  onChange={(e) =>
+                    setMagicUsername(e.target.value)
+                  }
+                  style={styles.popupInput}
+                />
+
+                <input
+                  type="number"
+                  placeholder="จำนวนเครดิต"
+                  value={magicAmount}
+                  onChange={(e) =>
+                    setMagicAmount(e.target.value)
+                  }
+                  style={styles.popupInput}
+                />
+
+                <div style={styles.popupActions}>
+
+                  <button
+                    style={styles.cancelPopupBtn}
+                    onClick={() =>
+                      setShowMagicCredit(false)
+                    }
+                  >
+                    ยกเลิก
+                  </button>
+
+                  <button
+                    style={styles.confirmPopupBtn}
+                    onClick={handleMagicCredit}
+                  >
+                    ยืนยัน
+                  </button>
+
                 </div>
-              ))}
-              {users.length === 0 && (
-                <div style={styles.emptyState}>
-                  <p>✨ ไม่มีผู้ใช้ให้เติมเครดิต</p>
-                </div>
-              )}
+
+              </div>
+
             </div>
+
+          )}
+          </div>
+
+            <div style={styles.topupGrid}>
+
+              {topups.map((item) => (
+
+                <div
+                  key={item.id}
+                  style={styles.topupCard}
+                >
+
+                  <h3>User : {item.username}</h3>
+
+                  <p>฿{item.amount}</p>
+
+                  <p>
+                    สถานะ:
+                    {item.status}
+                  </p>
+
+                  <img
+                    src={`http://localhost:3000/uploads/${item.slip_image}`}
+                    alt="slip"
+                    style={styles.slipImage}
+                  />
+
+                  {item.status !== 'approved' && (
+
+                    <button
+                      style={styles.approveBtn}
+                      onClick={async () => {
+
+                        await fetch(
+                          `http://localhost:3000/api/topups/${item.id}/approve`,
+                          {
+                            method: "PUT",
+                          }
+                        );
+
+                        loadTopups();
+                        loadUsers();
+
+                      }}
+                    >
+                      อนุมัติ
+                    </button>
+
+                  )}
+
+                </div>
+
+              ))}
+
+            </div>
+
           </div>
         )}
           </>
@@ -439,4 +556,122 @@ const styles = {
     marginBottom: "20px",
     border: "1px solid #fca5a5",
   },
+  topupGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))",
+    gap: "20px",
+  },
+
+  topupCard: {
+    background: "#fff",
+    padding: "20px",
+    borderRadius: "16px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+  },
+
+  slipImage: {
+    width: "100%",
+    maxHeight: "300px",
+    objectFit: "contain",
+    borderRadius: "12px",
+    marginTop: "10px",
+  },
+
+  approveBtn: {
+    marginTop: "15px",
+    width: "100%",
+    padding: "12px",
+    border: "none",
+    borderRadius: "10px",
+    background: "#16a34a",
+    color: "#fff",
+    fontWeight: "700",
+    cursor: "pointer",
+  },
+  topupHeader: {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "20px",
+},
+
+magicBtn: {
+  padding: "12px 20px",
+  border: "none",
+  borderRadius: "12px",
+  background: "linear-gradient(135deg,#8b5cf6,#6366f1)",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer",
+  fontSize: "15px",
+  boxShadow: "0 10px 25px rgba(99,102,241,0.25)",
+},
+
+popupOverlay: {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: "rgba(0,0,0,0.45)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 9999,
+},
+
+popupBox: {
+  width: "400px",
+  background: "#fff",
+  borderRadius: "20px",
+  padding: "30px",
+  boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "15px",
+},
+
+popupTitle: {
+  margin: 0,
+  fontSize: "28px",
+  fontWeight: "800",
+  color: "#111827",
+  textAlign: "center",
+},
+
+popupInput: {
+  padding: "14px",
+  borderRadius: "12px",
+  border: "1px solid #d1d5db",
+  fontSize: "15px",
+  outline: "none",
+},
+
+popupActions: {
+  display: "flex",
+  gap: "12px",
+  marginTop: "10px",
+},
+
+cancelPopupBtn: {
+  flex: 1,
+  padding: "14px",
+  border: "none",
+  borderRadius: "12px",
+  background: "#e5e7eb",
+  color: "#111827",
+  fontWeight: "700",
+  cursor: "pointer",
+},
+
+confirmPopupBtn: {
+  flex: 1,
+  padding: "14px",
+  border: "none",
+  borderRadius: "12px",
+  background: "linear-gradient(135deg,#10b981,#059669)",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer",
+},
 };

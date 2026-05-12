@@ -16,8 +16,6 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
           <thead>
             <tr style={styles.headerRow}>
               <th style={styles.th}>👤 ชื่อผู้เข้าพัก</th>
-              <th style={styles.th}>💳 วิธีชำระเงิน</th>
-              <th style={styles.th}>🖼️ หลักฐานการชำระเงิน</th>
               <th style={styles.th}>🛏️ ห้อง</th>
               <th style={styles.th}>📋 ประเภท</th>
               <th style={styles.th}>📅 เข้าพัก</th>
@@ -39,19 +37,6 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? "#f9fafb" : "#fff"}
               >
                 <td style={styles.td}><strong>{b.guest_name}</strong></td>
-                <td style={styles.td}>{b.payment_method}</td>
-                <td>
-                  {b.slip_image && (
-                    <img
-                      src={`http://localhost:3000/uploads/${b.slip_image}`}
-                      alt="slip"
-                      style={{
-                        width: "180px",
-                        borderRadius: "10px",
-                      }}
-                    />
-                  )}
-                </td>
                 <td style={styles.td}>{b.room_number || b.room_id}</td>
                 <td style={styles.td}>{b.room_type || '-'}</td>
                 <td style={styles.td}>{formatDate(b.check_in)}</td>
@@ -62,32 +47,31 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
                     backgroundColor: b.status === 'checked_in' ? '#d1fae5' : '#fef3c7',
                     color: b.status === 'checked_in' ? '#065f46' : '#92400e',
                   }}>
-                    {b.status === 'booked' ? '⏳ ยังไม่เข้าพัก' : '✓ เข้าพัก'}
+                    {
+                      b.status === "booked"
+                        ? "⏳ ยังไม่เข้าพัก"
+                        : b.status === "checked_in"
+                        ? "✅ เข้าพักแล้ว"
+                        : "✔ เช็คเอาท์แล้ว"
+                    }
                   </span>
                 </td>
                 <td style={styles.td}>
-                  <div style={styles.actionGroup}>
-                    {b.status === "booked" && onCheckin && (
-                      <button 
-                        onClick={() => onCheckin(b.id)}
-                        style={styles.btnCheckin}
-                        onMouseOver={(e) => e.target.style.backgroundColor = "#059669"}
-                        onMouseOut={(e) => e.target.style.backgroundColor = "#10b981"}
-                      >
-                        Check-in
-                      </button>
-                    )}
-                    {b.status === "checked_in" && onCheckout && (
-                      <button 
-                        onClick={() => onCheckout(b.id)}
-                        style={styles.btnCheckout}
-                        onMouseOver={(e) => e.target.style.backgroundColor = "#dc2626"}
-                        onMouseOut={(e) => e.target.style.backgroundColor = "#ef4444"}
-                      >
-                        Check-out
-                      </button>
-                    )}
-                  </div>
+                    {
+                      b.status === "booked" && (
+                        <button style={styles.btnCheckin} onClick={() => onCheckin(b.id)}>
+                          Check-in
+                        </button>
+                      )
+                    }
+
+                    {
+                      b.status === "checked_in" && (
+                        <button style={styles.btnCheckout} onClick={() => onCheckout(b.id)}>
+                          Check-out
+                        </button>
+                      )
+                    }
                 </td>
               </tr>
             ))}
@@ -139,25 +123,27 @@ const styles = {
     gap: "8px",
   },
   btnCheckin: {
-    padding: "8px 16px",
-    backgroundColor: "#10b981",
+    padding: "10px 18px",
+    background: "linear-gradient(135deg,#22c55e,#16a34a)",
     color: "#fff",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontSize: "13px",
-    fontWeight: "500",
-    transition: "background-color 0.2s ease",
+    fontWeight: "700",
+    transition: "all 0.25s ease",
+    boxShadow: "0 6px 16px rgba(34,197,94,0.25)",
   },
   btnCheckout: {
-    padding: "8px 16px",
-    backgroundColor: "#ef4444",
+    padding: "10px 18px",
+    background: "linear-gradient(135deg,#ef4444,#dc2626)",
     color: "#fff",
     border: "none",
-    borderRadius: "6px",
+    borderRadius: "10px",
     cursor: "pointer",
     fontSize: "13px",
-    fontWeight: "500",
-    transition: "background-color 0.2s ease",
+    fontWeight: "700",
+    transition: "all 0.25s ease",
+    boxShadow: "0 6px 16px rgba(239,68,68,0.25)",
   },
 };
