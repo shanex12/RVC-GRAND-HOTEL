@@ -6,18 +6,23 @@
   padding: 0;
 }
 
-html {
-  scroll-behavior: smooth;
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden;
 }
 
 body {
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: #f5f7fa;
-  color: #1f2937;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+#root {
+  display: flex;
+  min-height: 100vh;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -130,4 +135,8 @@ option {
     padding: 8px 12px;
     font-size: 12px;
   }
+  img {
+  display: block;
+  max-width: 100%;
+}
 }

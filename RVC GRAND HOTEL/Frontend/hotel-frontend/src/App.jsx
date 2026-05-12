@@ -228,14 +228,16 @@ function AppLayout({ children, onLogout, isAdmin }) {
 
 const styles = {
   sidebar: {
-    width: 320 ,
+    width: 300 ,
     background: "linear-gradient(180deg, #0369a1 0%, #0ea5e9 100%)",
     color: "#fff",
-    padding: 0,
     display: 'flex',
     flexDirection: 'column',
     boxShadow: '4px 0 20px rgba(2,6,23,0.12)',
     borderRight: "1px solid rgba(14,165,233,0.12)",
+    minHeight: "100vh",
+    margin: 0,
+    padding: 0,
   },
   logoSection: {
     padding: '40px 20px',

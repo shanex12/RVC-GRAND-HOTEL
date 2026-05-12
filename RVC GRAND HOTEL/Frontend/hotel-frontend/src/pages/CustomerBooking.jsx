@@ -181,12 +181,7 @@ export default function CustomerBooking() {
   return (
     <div style={styles.container}>
       <div style={styles.wrapper}>
-        <div style={styles.headerContainer}>
-          <div style={styles.headerLeft}>
-            <h1 style={styles.title}>จองห้องพัก</h1>
-            <p style={styles.subtitle}>เลือกห้องที่คุณชอบ</p>
-          </div>
-
+        <div style={styles.topBar}>
           <div style={styles.headerRight}>
             <div style={{...styles.userCard, position: 'relative'}}>
               <button
@@ -218,19 +213,8 @@ export default function CustomerBooking() {
                 </div>
               )}
             </div>
-
-            <div style={styles.searchBox}>
-              <input
-                placeholder="ค้นหาห้องหรือประเภท (Twin / Double / เตียงเดี่ยว / เตียงคู่)"
-                style={styles.searchInput}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <button style={styles.searchBtn} onClick={loadRooms}>ค้นหา</button>
-            </div>
           </div>
         </div>
-
         <div style={styles.categoryBar}>
           <button style={category === 'all' ? {...styles.categoryButton, ...styles.activeCategoryButton} : styles.categoryButton} onClick={() => setCategory('all')}>ทั้งหมด</button>
           <button style={category === 'double' ? {...styles.categoryButton, ...styles.activeCategoryButton} : styles.categoryButton} onClick={() => setCategory('double')}>เตียงคู่ (Double)</button>
@@ -552,13 +536,16 @@ export default function CustomerBooking() {
 const styles = {
   container: {
     minHeight: "100vh",
+    width: "100%",
+    margin: 0,
+    padding: 0,
     backgroundColor: "#f8f7f4",
-    padding: "20px",
   },
   wrapper: {
     width: "100%",
     maxWidth: "1400px",
     margin: "0 auto",
+    padding: "100px 24px 24px",
   },
   header: {
     textAlign: "center",
@@ -802,13 +789,6 @@ const styles = {
     marginBottom: "22px",
     borderLeft: "4px solid rgba(14,165,233,0.9)",
   },
-  headerContainer: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px',
-    gap: '18px',
-  },
   headerLeft: {
     textAlign: 'left',
   },
@@ -851,15 +831,6 @@ const styles = {
   userCredit: {
     fontSize: '13px',
     color: '#0369a1'
-  },
-  searchBox: {
-    display: 'flex',
-    alignItems: 'center',
-    background: '#fff',
-    padding: '6px 8px',
-    borderRadius: '12px',
-    boxShadow: '0 10px 30px rgba(2,6,23,0.06)',
-    border: '1px solid rgba(14,165,233,0.12)',
   },
   searchInput: {
     border: 'none',
@@ -1099,5 +1070,11 @@ const styles = {
     borderRadius: '10px',
     border: '1px solid #bfdbfe',
     textAlign: 'center',
+  },
+  topBar: {
+  position: "fixed",
+  top: "20px",
+  right: "30px",
+  zIndex: 999,
   },
 };
