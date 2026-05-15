@@ -47,4 +47,5 @@ export async function createBooking(data) {
   }
 
   return result;
+
 }

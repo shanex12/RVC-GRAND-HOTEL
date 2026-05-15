@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getRooms, createBooking } from "../api/booking";
+import { useNavigate } from "react-router-dom";
+import Swal from 'sweetalert2';
 
 export default function CustomerBooking() {
   const { user, token, refreshUser } = useAuth();
@@ -10,6 +12,7 @@ export default function CustomerBooking() {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const [checkInDate, setCheckInDate] = useState("");
   const [checkOutDate, setCheckOutDate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,6 +24,11 @@ export default function CustomerBooking() {
   const [creditAmount, setCreditAmount] = useState(100);
   const [topupSlip, setTopupSlip] = useState(null);
   const [topupSlipPreview, setTopupSlipPreview] = useState("");
+  const [searchCheckIn, setSearchCheckIn] = useState("");
+  const [searchCheckOut, setSearchCheckOut] = useState("");
+  const [searchGuests, setSearchGuests] = useState(1);
+
+  
 
   useEffect(() => {
     loadRooms();
@@ -60,7 +68,17 @@ export default function CustomerBooking() {
       q.includes("double") && typeText.includes("double") ||
       q.includes("เตียงเดี่ยว") && typeText.includes("เตียงเดี่ยว") ||
       q.includes("เตียงคู่") && typeText.includes("เตียงคู่");
-    return matchesSearch && matchesCategory(room);
+    const capacityMatch =
+      !searchGuests || Number(room.capacity) >= Number(searchGuests);
+
+    const availableMatch =
+      room.status === "available";
+    return (
+    matchesSearch &&
+    matchesCategory(room) &&
+    capacityMatch &&
+    availableMatch
+  );
   });
 
   const loadRooms = async () => {
@@ -80,23 +98,41 @@ export default function CustomerBooking() {
 
   const getMinCheckOutDate = () => {
     if (!checkInDate) return getTodayDate();
+
     const checkIn = new Date(checkInDate);
+
     checkIn.setDate(checkIn.getDate() + 1);
-    return checkIn.toISOString().split('T')[0];
+
+    return checkIn.toISOString().split("T")[0];
   };
+
+  const calculateNights = (checkIn, checkOut) => {
+    const inDate = new Date(checkIn);
+    const outDate = new Date(checkOut);
+
+    const diffTime = outDate - inDate;
+
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
 
   const handleSelectRoom = (room) => {
     setSelectedRoom(room);
     setShowBookingModal(true);
     setGuestName("");
+    setGuestPhone("");
     setCheckInDate("");
     setCheckOutDate("");
   };
 
     const handleBooking = async () => {
       setBookingError("");
-      if (!guestName || !checkInDate || !checkOutDate || !selectedRoom) {
+      if (!guestName || !guestPhone ||  !checkInDate || !checkOutDate || !selectedRoom) {
         setBookingError("กรุณากรอกข้อมูลให้ครบ");
+        return;
+      }
+      if (guestPhone.length !== 10) {
+        setBookingError("กรุณากรอกเบอร์โทร 10 หลัก");
         return;
       }
 
@@ -105,11 +141,21 @@ export default function CustomerBooking() {
         return;
       }
 
+      const totalPrice =
+        selectedRoom.price *
+        calculateNights(checkInDate, checkOutDate);
+
+      if ((user?.credit ?? 0) < totalPrice) {
+        setBookingError("เครดิตไม่เพียงพอ");
+        return;
+      }
+
     setLoading(true);
 
     try {
       const result = await createBooking({
         guest_name: guestName,
+        guest_phone: guestPhone,
         room_id: selectedRoom.id,
         check_in: checkInDate,
         check_out: checkOutDate,
@@ -136,7 +182,12 @@ export default function CustomerBooking() {
   const handleTopUpCredit = async () => {
 
     if (!creditAmount || !topupSlip) {
-      alert("กรุณาแนบสลิป");
+      Swal.fire({
+        title: 'ผิดพลาด',
+        text: 'กรุณาแนบสลิป',
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+      });
       return;
     }
 
@@ -165,7 +216,12 @@ export default function CustomerBooking() {
         return;
       }
 
-      alert("ส่งคำขอเติมเครดิตแล้ว");
+      Swal.fire({
+        title: 'สำเร็จ',
+        text: 'ส่งคำขอเติมเครดิตแล้ว',
+        icon: 'success',
+        confirmButtonColor: '#22c55e',
+      });
 
       setShowCreditModal(false);
 
@@ -174,7 +230,12 @@ export default function CustomerBooking() {
 
     } catch (err) {
       console.error(err);
-      alert("เกิดข้อผิดพลาด");
+      Swal.fire({
+        title: 'ผิดพลาด',
+        text: 'เกิดข้อผิดพลาด',
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+      });
     }
   };
 
@@ -205,16 +266,137 @@ export default function CustomerBooking() {
                       setShowUserMenu(false);
                     }}
                   >
-                    💳 เติมเครดิต
+                    เติมเครดิต
                   </button>
                   <button style={{...styles.dropdownItem, borderTop: '1px solid #e0f2fe'}}>
-                    👤 โปรไฟล์
+                    โปรไฟล์
                   </button>
                 </div>
               )}
             </div>
           </div>
         </div>
+        
+        <div style={styles.heroSection}>
+          <h1   style={{...styles.heroTitle,fontSize: window.innerWidth < 768 ? "42px" : "72px",}}
+          >
+            Welcome to RVC Grand Hotel
+          </h1>
+
+          <p style={styles.heroText}>
+            Discover luxury rooms and premium experiences
+          </p>
+          <div style={styles.bookingSearchBar}>
+            <div style={styles.searchField}>
+              <label style={styles.searchLabel}>Check In</label>
+
+              <input
+                type="date"
+                style={styles.searchInputModern}
+                value={searchCheckIn}
+                min={getTodayDate()}
+                onChange={(e) => {
+                  setSearchCheckIn(e.target.value);
+
+                  // reset checkout ถ้าเลือกวันผิด
+                  if (
+                    searchCheckOut &&
+                    new Date(e.target.value) >= new Date(searchCheckOut)
+                  ) {
+                    setSearchCheckOut("");
+                  }
+                }}
+              />
+            </div>
+
+            <div style={styles.searchField}>
+              <label style={styles.searchLabel}>Check Out</label>
+
+              <input
+                type="date"
+                style={styles.searchInputModern}
+                value={searchCheckOut}
+                min={
+                  searchCheckIn
+                    ? new Date(
+                        new Date(searchCheckIn).setDate(
+                          new Date(searchCheckIn).getDate() + 1
+                        )
+                      )
+                        .toISOString()
+                        .split("T")[0]
+                    : getTodayDate()
+                }
+                onChange={(e) => setSearchCheckOut(e.target.value)}
+                disabled={!searchCheckIn}
+              />
+            </div>
+
+            <div style={styles.searchField}>
+              <label style={styles.searchLabel}>Guests</label>
+
+              <select
+                style={styles.searchInputModern}
+                value={searchGuests}
+                onChange={(e) => setSearchGuests(Number(e.target.value))}
+              >
+                <option value={1}>1 Guest</option>
+                <option value={2}>2 Guests</option>
+                <option value={3}>3 Guests</option>
+                <option value={4}>4 Guests</option>
+              </select>
+            </div>
+
+            <button
+              style={styles.searchMainButton}
+              onClick={() => {
+                if (!searchCheckIn || !searchCheckOut) {
+                  alert("กรุณาเลือกวันเข้าพักและวันออก");
+                  return;
+                }
+
+                setCategory(searchGuests >= 2 ? "double" : "single");
+              }}
+            >
+              Search Rooms
+            </button>
+          </div>
+        </div>
+
+        <div style={styles.statsGrid}>
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>🛏️</div>
+            <div>
+              <h3 style={styles.statNumber}>20</h3>
+              <p style={styles.statText}>ห้องพักคุณภาพ</p>
+            </div>
+          </div>
+
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>⭐</div>
+            <div>
+              <h3 style={styles.statNumber}>4.9</h3>
+              <p style={styles.statText}>คะแนนรีวิว</p>
+            </div>
+          </div>
+
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>🕒</div>
+            <div>
+              <h3 style={styles.statNumber}>24/7</h3>
+              <p style={styles.statText}>บริการตลอดเวลา</p>
+            </div>
+          </div>
+
+          <div style={styles.statCard}>
+            <div style={styles.statIcon}>🛡️</div>
+            <div>
+              <h3 style={styles.statNumber}>Secure</h3>
+              <p style={styles.statText}>ระบบปลอดภัย</p>
+            </div>
+          </div>
+        </div>
+
         <div style={styles.categoryBar}>
           <button style={category === 'all' ? {...styles.categoryButton, ...styles.activeCategoryButton} : styles.categoryButton} onClick={() => setCategory('all')}>ทั้งหมด</button>
           <button style={category === 'double' ? {...styles.categoryButton, ...styles.activeCategoryButton} : styles.categoryButton} onClick={() => setCategory('double')}>เตียงคู่ (Double)</button>
@@ -242,9 +424,14 @@ export default function CustomerBooking() {
                   e.currentTarget.style.borderColor = "transparent";
                 }}
               >
-                <div style={styles.roomImage}>
-                  {((room.room_type || room.type || "").toLowerCase().includes('double') || (room.room_type || room.type || "").toLowerCase().includes('คู่')) ? '👥' : '👤'}
-                </div>
+                <img
+                  src={
+                    room.image ||
+                    "https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=1200&auto=format&fit=crop"
+                  }
+                  alt={room.name}
+                  style={styles.roomImage}
+                />
                 <div style={styles.roomInfo}>
                   <h3 style={styles.roomName}>ห้องที่ {room.name}</h3>
                   <p style={styles.roomType}>{room.room_type}</p>
@@ -289,7 +476,7 @@ export default function CustomerBooking() {
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
-                📋 ยืนยันการจองห้องที่ {selectedRoom.name}
+                ยืนยันการจองห้องที่ {selectedRoom.name}
               </h2>
               <button
                 style={styles.closeButton}
@@ -316,6 +503,23 @@ export default function CustomerBooking() {
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                 />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>เบอร์โทรติดต่อ</label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={10}
+                    style={styles.input}
+                    placeholder="กรุณากรอกเบอร์โทรศัพท์ของคุณ"
+                    value={guestPhone}
+                    onChange={(e) => {
+                      const onlyNums = e.target.value.replace(/\D/g, "");
+                      setGuestPhone(onlyNums);
+                    }}
+                  />
               </div>
 
               <div style={styles.formGroup}>
@@ -349,10 +553,11 @@ export default function CustomerBooking() {
               {checkInDate && checkOutDate && (
                 <div style={styles.summaryBox}>
                   <p>
-                    <strong>ระยะเวลาพัก:</strong> {new Date(checkOutDate).getDate() - new Date(checkInDate).getDate()} คืน
+                    <strong>ระยะเวลาพัก:</strong> {calculateNights(checkInDate, checkOutDate)} คืน
                   </p>
+                  
                   <p>
-                    <strong>ราคารวม:</strong> ฿{selectedRoom.price * (new Date(checkOutDate).getDate() - new Date(checkInDate).getDate())}
+                    <strong>ราคารวม:</strong> ฿{selectedRoom.price * calculateNights(checkInDate, checkOutDate)}
                   </p>
                 </div>
               )}
@@ -535,34 +740,14 @@ export default function CustomerBooking() {
 
 const styles = {
   container: {
-    minHeight: "100vh",
     width: "100%",
-    margin: 0,
-    padding: 0,
+    minHeight: "100vh",
     backgroundColor: "#f8f7f4",
+    padding: 0,
+    margin: 0,
   },
   wrapper: {
-    width: "100%",
-    maxWidth: "1400px",
-    margin: "0 auto",
-    padding: "100px 24px 24px",
-  },
-  header: {
-    textAlign: "center",
-    marginBottom: "50px",
-    paddingTop: "20px",
-  },
-  title: {
-    fontSize: "42px",
-    fontWeight: "700",
-    color: "#1a1a1a",
-    margin: "0 0 10px 0",
-    letterSpacing: "1px",
-  },
-  subtitle: {
-    fontSize: "18px",
-    color: "#075985",
-    margin: 0,
+    padding: "20px 24px 40px",
   },
   roomsGrid: {
     display: "grid",
@@ -571,22 +756,19 @@ const styles = {
     marginBottom: "40px",
   },
   roomCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: "16px",
+    background: "#fff",
+    borderRadius: "22px",
     overflow: "hidden",
-    boxShadow: "0 18px 50px rgba(2,6,23,0.06)",
-    transition: "transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease",
-    border: "1px solid rgba(14,165,233,0.12)",
+    boxShadow: "0 20px 50px rgba(15,23,42,0.08)",
+    transition: "all 0.35s ease",
+    border: "1px solid rgba(226,232,240,0.8)",
     cursor: "pointer",
   },
   roomImage: {
     width: "100%",
-    height: "200px",
-    background: "linear-gradient(135deg,#7dd3fc 0%,#60a5fa 100%)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "80px",
+    height: "220px",
+    objectFit: "cover",
+    display: "block",
   },
   roomInfo: {
     padding: "25px",
@@ -604,67 +786,6 @@ const styles = {
     margin: "0 0 12px 0",
     textTransform: "uppercase",
     letterSpacing: "1px",
-  },
-  paymentOptionBox: {
-    display: 'flex',
-    gap: '10px',
-    flexWrap: 'wrap',
-    marginTop: '10px',
-  },
-  paymentOption: {
-    padding: '10px 18px',
-    borderRadius: '999px',
-    border: '1px solid #d1d5db',
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-    color: '#374151',
-    fontWeight: 600,
-    transition: 'all 0.2s ease',
-  },
-  paymentOptionActive: {
-    backgroundColor: 'linear-gradient(90deg,#e0f2fe,#f0f9ff)',
-    borderColor: '#7dd3fc',
-    color: '#0369a1',
-  },
-  creditInfo: {
-    marginTop: '12px',
-    padding: '14px',
-    backgroundColor: '#eff6ff',
-    borderRadius: '12px',
-    border: '1px solid #bfdbfe',
-    color: '#075985',
-    fontSize: '14px',
-  },
-  creditNote: {
-    margin: '6px 0 0 0',
-    fontSize: '13px',
-    color: '#4b5563',
-  },
-  qrBox: {
-    marginTop: '16px',
-    padding: '15px',
-    backgroundColor: '#f8fafc',
-    borderRadius: '16px',
-    border: '1px solid #e5e7eb',
-    textAlign: 'center',
-  },
-  qrLabel: {
-    margin: '0 0 12px 0',
-    fontSize: '14px',
-    fontWeight: 600,
-    color: '#111827',
-  },
-  qrImage: {
-    width: '220px',
-    height: '220px',
-    borderRadius: '16px',
-    marginBottom: '12px',
-    border: '1px solid #d1d5db',
-  },
-  qrHint: {
-    margin: 0,
-    fontSize: '13px',
-    color: '#6b7280',
   },
   roomCapacity: {
     fontSize: "14px",
@@ -696,16 +817,15 @@ const styles = {
   },
   bookButton: {
     width: "100%",
-    padding: "14px",
-    background: 'linear-gradient(90deg,#0369a1,#0ea5e9)',
-    color: "#fff",
+    padding: "16px",
+    borderRadius: "16px",
     border: "none",
-    borderRadius: "12px",
-    fontSize: "16px",
-    fontWeight: "800",
+    background:"linear-gradient(135deg,#2563eb,#1d4ed8)",
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: "15px",
     cursor: "pointer",
-    transition: "transform 0.18s ease, box-shadow 0.2s ease",
-    boxShadow: '0 10px 30px rgba(14,165,233,0.12)'
+    transition: "all 0.3s ease",
   },
   disabledButton: {
     width: "100%",
@@ -731,7 +851,6 @@ const styles = {
     maxWidth: "500px",
     maxHeight: "90vh",
     overflow: "auto",
-    border: "1px solid rgba(212,175,55,0.2)",
     },
   modalOverlay: {
     position: "fixed",
@@ -789,9 +908,6 @@ const styles = {
     marginBottom: "22px",
     borderLeft: "4px solid rgba(14,165,233,0.9)",
   },
-  headerLeft: {
-    textAlign: 'left',
-  },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
@@ -831,24 +947,6 @@ const styles = {
   userCredit: {
     fontSize: '13px',
     color: '#0369a1'
-  },
-  searchInput: {
-    border: 'none',
-    outline: 'none',
-    padding: '8px 10px',
-    fontSize: '14px',
-    minWidth: '220px',
-    background: 'transparent',
-  },
-  searchBtn: {
-    marginLeft: '8px',
-    background: 'linear-gradient(90deg,#0ea5e9,#0891b2)',
-    color: '#fff',
-    border: 'none',
-    padding: '8px 12px',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontWeight: 700
   },
   categoryBar: {
     display: 'flex',
@@ -1072,9 +1170,119 @@ const styles = {
     textAlign: 'center',
   },
   topBar: {
-  position: "fixed",
-  top: "20px",
-  right: "30px",
-  zIndex: 999,
+  display: "flex",
+  justifyContent: "flex-end",
+  marginBottom: "20px",
+  },
+  heroSection: {
+    minHeight: "330px",
+    backgroundImage:"linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.45)), url('https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?q=80&w=1600&auto=format&fit=crop')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    color: "#fff",
+    marginBottom: "35px",
+    boxShadow: "0 25px 60px rgba(15,23,42,0.35)",
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: "32px",
+    
+  },
+
+  heroTitle: {
+  fontSize: "72px",
+  fontWeight: "800",
+  lineHeight: 1.05,
+  marginBottom: "18px",
+  marginLeft: "24px",
+  maxWidth: "1200px",
+  },
+
+  heroText: {
+    fontSize: "18px",
+    opacity: 0.9,
+    maxWidth: "500px",
+    lineHeight: 1.7,
+    marginLeft: "25px",
+  },
+  bookingSearchBar: {
+    marginTop: "35px",
+    marginLeft: "24px",
+    marginRight: "24px",
+    background: "#fff",
+    borderRadius: "24px",
+    padding: "18px",
+    display: "flex",
+    gap: "18px",
+    alignItems: "end",
+    flexWrap: "wrap",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+  },
+
+  searchField: {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+    minWidth: "180px",
+  },
+
+  searchLabel: {
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#64748b",
+    marginBottom: "8px",
+  },
+
+  searchInputModern: {
+    padding: "14px",
+    borderRadius: "14px",
+    border: "1px solid #e2e8f0",
+    fontSize: "15px",
+    outline: "none",
+    background: "#f8fafc",
+  },
+
+  searchMainButton: {
+    padding: "15px 28px",
+    borderRadius: "16px",
+    border: "none",
+    background: "linear-gradient(135deg,#0ea5e9,#2563eb)",
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: "15px",
+    cursor: "pointer",
+    minWidth: "180px",
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+    gap: "20px",
+    marginBottom: "30px",
+  },
+
+  statCard: {
+    background: "#fff",
+    borderRadius: "22px",
+    padding: "24px",
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+  },
+
+  statIcon: {
+    fontSize: "34px",
+  },
+
+  statNumber: {
+    margin: 0,
+    fontSize: "28px",
+    fontWeight: "800",
+    color: "#0f172a",
+  },
+
+  statText: {
+    margin: 0,
+    color: "#64748b",
+    fontSize: "14px",
   },
 };

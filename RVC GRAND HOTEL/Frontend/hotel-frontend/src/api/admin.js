@@ -70,7 +70,7 @@ export async function getUsers(token) {
     return [];
   }
 }
-
+/* ฟังก์ชันเติมเครดิต */
 export async function topUpCredit(userId, amount, token) {
   try {
     const res = await fetch(`${API_URL}/auth/users/${userId}/credit`, {
@@ -91,3 +91,28 @@ export async function topUpCredit(userId, amount, token) {
     throw err;
   }
 }
+/* ประวัติการจอง*/
+export async function getBookingHistory() {
+
+  const res = await fetch(
+    'http://localhost:3000/api/bookings/history'
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || 'โหลดประวัติไม่สำเร็จ');
+  }
+
+  return data;
+}
+/* สถิติแดชบอร์ด */
+export const getDashboardStats = async () => {
+
+  const res = await fetch(
+    "http://localhost:3000/api/dashboard/stats"
+  );
+
+  return await res.json();
+
+};

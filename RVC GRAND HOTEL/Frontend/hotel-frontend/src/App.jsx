@@ -6,6 +6,8 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/AdminDashboard";
 import CustomerBooking from "./pages/CustomerBooking";
 import { AdminRoute, ProtectedRoute, PublicRoute } from "./components/ProtectedRoute";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 
 export default function App() {
@@ -18,6 +20,7 @@ export default function App() {
   };
 
   return (
+    <>
     <Routes>
       {/* Public Routes */}
       <Route
@@ -59,12 +62,19 @@ export default function App() {
           </AdminRoute>
         }
       />
-
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+        {/* Toast */}
+    <ToastContainer
+      position="top-right"
+      autoClose={3000}
+      theme="colored"
+    />
+  </>
   );
 }
+
 
 function AppLayout({ children, onLogout, isAdmin }) {
   const { user } = useAuth();
@@ -81,7 +91,7 @@ function AppLayout({ children, onLogout, isAdmin }) {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", backgroundColor: "#f8f7f4", overflowY: "hidden"}}>
+    <div style={{     display: "flex",fontFamily: "'Poppins', sans-serif", height: "100vh", backgroundColor: "#f8f7f4", overflowY: "hidden"}}>
       {/* SIDEBAR - Fixed Height with Overflow */}
       <div style={{...styles.sidebar, maxHeight: '100vh', overflowY: 'auto' , height: "100vh"}}>
         {/* Logo Section */}
@@ -157,15 +167,16 @@ function AppLayout({ children, onLogout, isAdmin }) {
             style={styles.logoutBtn}
             onClick={handleLogoutClick}
             onMouseOver={(e) => {
-              e.target.style.backgroundColor = "#dc2626";
-              e.target.style.transform = "translateY(-2px)";
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 14px 30px rgba(233, 14, 14, 0.35)";
+              e.currentTarget.style.filter = "brightness(1.05)";
             }}
             onMouseOut={(e) => {
-              e.target.style.backgroundColor = "#ef4444";
-              e.target.style.transform = "translateY(0)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 10px 25px rgba(233, 14, 14, 0.25)";
+              e.currentTarget.style.filter = "brightness(1)";
             }}
           >
-            <span style={{ marginRight: '8px' }}>🚪</span>
             ออกจากระบบ
           </button>
         </div>
@@ -173,19 +184,6 @@ function AppLayout({ children, onLogout, isAdmin }) {
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* TOP BAR */}
-        <div style={styles.topBar}>
-          <div style={styles.topBarContent}>
-            <div>
-              <h1 style={styles.pageTitle}>
-                {isAdmin ? "⚙️ Admin Dashboard" : "👤 จองห้องพัก"}
-              </h1>
-              <p style={styles.pageSubtitle}>
-                {isAdmin ? "จัดการโรงแรมและการจอง" : "เลือกห้องพักที่สวยงาม"}
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* CONTENT AREA */}
         <div style={{ flex: 1, overflow: 'auto' }}>
@@ -228,16 +226,14 @@ function AppLayout({ children, onLogout, isAdmin }) {
 
 const styles = {
   sidebar: {
-    width: 300 ,
-    background: "linear-gradient(180deg, #0369a1 0%, #0ea5e9 100%)",
+    width: 280,
+    background: "linear-gradient(180deg,#0f172a,#111827)",
     color: "#fff",
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '4px 0 20px rgba(2,6,23,0.12)',
-    borderRight: "1px solid rgba(14,165,233,0.12)",
-    minHeight: "100vh",
-    margin: 0,
-    padding: 0,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    paddingTop: "20px",
+    boxShadow: "4px 0 30px rgba(0,0,0,0.25)",
   },
   logoSection: {
     padding: '40px 20px',
@@ -276,10 +272,10 @@ const styles = {
   },
   navLink: (isActive) => ({
     padding: "16px 25px",
-    backgroundColor: isActive ? "rgba(212,175,55,0.15)" : "transparent",
+    backgroundColor: isActive ? "rgba(255,255,255,0.12)" : "transparent",
     color: "#fff",
     border: "none",
-    borderLeft: isActive ? "3px solid #d4af37" : "3px solid transparent",
+    borderLeft: isActive ? "4px solid #38bdf8" : "4px solid transparent",
     cursor: "pointer",
     fontSize: "15px",
     fontWeight: "500",
@@ -332,42 +328,20 @@ const styles = {
   },
   logoutBtn: {
     width: "100%",
-    padding: "12px 16px",
-    backgroundColor: "#ef4444",
+    padding: "14px 18px",
+    background: "linear-gradient(135deg,#ef4444,#dc2626)",
     color: "#fff",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "14px",
     cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "600",
-    transition: "all 0.3s ease",
+    fontSize: "15px",
+    fontWeight: "700",
+    transition: "all 0.25s ease",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-  },
-  topBar: {
-    backgroundColor: "#fff",
-    padding: "25px 40px",
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-    borderBottom: "1px solid #e5e7eb",
-    background: "linear-gradient(90deg, #fff 0%, rgba(212,175,55,0.02) 100%)",
-  },
-  topBarContent: {
-    flex: 1,
-  },
-  pageTitle: {
-    margin: '0 0 5px 0',
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1a1a1a',
-  },
-  pageSubtitle: {
-    margin: 0,
-    fontSize: '14px',
-    color: '#6b7280',
+    boxShadow: "0 10px 25px rgba(233, 14, 14, 0.25)",
+    letterSpacing: "0.5px",
   },
   modalOverlay: {
     position: "fixed",
@@ -429,5 +403,19 @@ const styles = {
     fontSize: "15px",
     fontWeight: "600",
     transition: "all 0.2s ease",
+  },
+  topRight: {
+  display: "flex",
+  alignItems: "center",
+  gap: "15px",
+  },
+
+  dateBox: {
+    background: "#f3f4f6",
+    padding: "10px 16px",
+    borderRadius: "12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#374151",
   },
 };

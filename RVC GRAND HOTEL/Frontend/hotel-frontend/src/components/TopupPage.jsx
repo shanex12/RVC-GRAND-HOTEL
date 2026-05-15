@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Swal from 'sweetalert2';
 
 export default function TopupPage() {
 
@@ -9,7 +10,12 @@ export default function TopupPage() {
   const handleTopup = async () => {
 
     if (!amount || !slip) {
-      alert("กรอกข้อมูลให้ครบ");
+      Swal.fire({
+        title: 'ผิดพลาด',
+        text: 'กรุณาระบุจำนวนเครดิตที่ต้องการเติมและอัปโหลดสลิป',
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+      });
       return;
     }
 
@@ -34,11 +40,21 @@ export default function TopupPage() {
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data.error);
+      Swal.fire({
+        title: 'ผิดพลาด',
+        text: data.error || 'กรุณาระบุจำนวนเครดิตที่ต้องการเติม',
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+      });
       return;
     }
 
-    alert("ส่งคำขอเติมเครดิตแล้ว");
+    Swal.fire({
+      title: 'สำเร็จ',
+      text: 'ส่งคำขอเติมเครดิตแล้ว',
+      icon: 'success',
+      confirmButtonColor: '#22c55e',
+    });
   };
 
   return (

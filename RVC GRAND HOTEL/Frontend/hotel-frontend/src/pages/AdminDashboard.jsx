@@ -5,6 +5,11 @@ import StatCard from '../components/StatCard';
 import BookingTable from '../components/BookingTable';
 import AddRoomForm from '../components/AddRoomForm';
 import RoomList from '../components/RoomList';
+import BookingHistory  from '../components/BookingHistory';
+import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
+import { getDashboardStats } from '../api/admin';
+
 
 export default function AdminDashboard() {
   const [topups, setTopups] = useState([]);
@@ -19,6 +24,13 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+  usedCredit: 0,
+  monthRevenue: 0,
+  availableRooms: 0,
+  checkedIn: 0,
+});
+
 
   const loadBookings = async () => {
     try {
@@ -55,7 +67,7 @@ export default function AdminDashboard() {
       setLoading(true);
       setError(null);
       try {
-        await Promise.all([loadBookings(), loadRooms(), loadUsers(), loadTopups()]);
+        await Promise.all([loadBookings(), loadRooms(), loadUsers(), loadTopups(), loadDashboardStats()]);
       } catch (err) {
         console.error('Dashboard init error:', err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -66,41 +78,101 @@ export default function AdminDashboard() {
     initDashboard();
   }, [token]);
 
-  const handleCheckin = async (id) => {
-    if (!confirm('ยืนยันเช็คอิน?')) return;
-    try {
-      await checkinBooking(id);
-      loadBookings();
-      loadRooms();
-    } catch (err) {
-      alert('เช็คอินไม่สำเร็จ');
-    }
-  };
+const handleCheckin = async (id) => {
 
-  const handleCheckout = async (id) => {
-    if (!confirm('ยืนยันเช็กเอาท์?')) return;
-    try {
-      await checkoutBooking(id);
-      loadBookings();
-      loadRooms();
-    } catch (err) {
-      alert('เช็คเอาท์ไม่สำเร็จ');
-    }
-  };
+  const result = await Swal.fire({
+    title: 'ยืนยันเช็คอิน?',
+    text: 'ต้องการเช็คอินลูกค้าคนนี้หรือไม่',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยัน',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#22c55e',
+    cancelButtonColor: '#6b7280',
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+
+    await checkinBooking(id);
+
+    await Swal.fire({
+      title: 'สำเร็จ',
+      text: 'เช็คอินเรียบร้อยแล้ว',
+      icon: 'success',
+      confirmButtonColor: '#22c55e',
+    });
+
+    loadBookings();
+    loadRooms();
+
+  } catch (err) {
+
+    Swal.fire({
+      title: 'ผิดพลาด',
+      text: 'เช็คอินไม่สำเร็จ',
+      icon: 'error',
+      confirmButtonColor: '#ef4444',
+    });
+
+  }
+};
+
+const handleCheckout = async (id) => {
+
+  const result = await Swal.fire({
+    title: 'ยืนยันเช็คเอาท์?',
+    text: 'เมื่อลูกค้าเช็คเอาท์แล้ว ห้องจะว่างและพร้อมให้จองต่อไป ต้องการเช็คเอาท์ลูกค้าคนนี้หรือไม่',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'เช็คเอาท์',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+
+    await checkoutBooking(id);
+
+    Swal.fire({
+      title: 'สำเร็จ',
+      text: 'เช็คเอาท์เรียบร้อย',
+      icon: 'success',
+      confirmButtonColor: '#22c55e',
+    });
+
+    loadBookings();
+    loadRooms();
+
+  } catch (err) {
+
+    Swal.fire({
+      title: 'ผิดพลาด',
+      text: 'เช็คเอาท์ไม่สำเร็จ',
+      icon: 'error',
+      confirmButtonColor: '#ef4444',
+    });
+
+  }
+};
 
   const handleTopUp = async (userId) => {
     const amount = Number(topUpAmounts[userId] || 0);
     if (!amount || amount <= 0) {
-      alert('กรุณาระบุจำนวนเครดิตที่ต้องการเติม');
+      toast.error('กรุณาระบุจำนวนเครดิตที่ต้องการเติม');
       return;
     }
     try {
       await topUpCredit(userId, amount, token);
-      alert('เติมเครดิตสำเร็จ');
+      toast.success('เติมเครดิตสำเร็จ ✨');
       setTopUpAmounts((prev) => ({ ...prev, [userId]: '' }));
       loadUsers();
     } catch (err) {
-      alert(err.message || 'เติมเครดิตไม่สำเร็จ');
+      toast.error(err.message || 'เติมเครดิตไม่สำเร็จ');
     }
   };
 
@@ -118,7 +190,7 @@ export default function AdminDashboard() {
   const handleMagicCredit = async () => {
 
     if (!magicUsername || !magicAmount) {
-      alert("กรอกข้อมูลให้ครบ");
+      toast.error("กรอกข้อมูลให้ครบ");
       return;
     }
 
@@ -131,7 +203,7 @@ export default function AdminDashboard() {
       );
 
       if (!foundUser) {
-        alert("ไม่พบ username");
+        toast.error("ไม่พบ username");
         return;
       }
 
@@ -141,7 +213,12 @@ export default function AdminDashboard() {
         token
       );
 
-      alert("เติมเครดิตสำเร็จ ✨");
+      Swal.fire({
+        title: 'สำเร็จ',
+        text: 'เติมเครดิตสำเร็จ',
+        icon: 'success',
+        confirmButtonColor: '#22c55e',
+      });
 
       setMagicUsername("");
       setMagicAmount("");
@@ -151,10 +228,31 @@ export default function AdminDashboard() {
 
     } catch (err) {
 
-      alert("เติมเครดิตไม่สำเร็จ");
+      Swal.fire({
+        title: 'ผิดพลาด',
+        text: err.message || 'เติมเครดิตไม่สำเร็จ',
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+      });
 
     }
   };
+
+  const loadDashboardStats = async () => {
+
+  try {
+
+    const data = await getDashboardStats();
+
+    setStats(data);
+
+  } catch (err) {
+
+    console.error(err);
+
+  }
+
+};
 
   const checkedInCount = bookings.filter(b => b.status === 'checked_in').length;
 
@@ -180,26 +278,37 @@ export default function AdminDashboard() {
 
         {!loading && !error && (
           <>
-            {/* Stats */}
-            <div style={styles.statsGrid}>
-          <StatCard 
-            title="ผู้เข้าพักแล้ว" 
-            value={checkedInCount}
-            icon="👥"
-            color="#667eea"
+      {/* Stats */}
+        <div style={styles.statsGrid}>
+
+          <StatCard
+            title="รายได้วันนี้"
+            value={`฿${Number(stats.usedCredit || 0).toLocaleString()}`}
+            icon="💰"
+            color="#22c55e"
           />
-          <StatCard 
-            title="รอเข้าพัก" 
-            value={bookings.length - checkedInCount}
-            icon="⏳"
+
+          <StatCard
+            title="รายได้เดือนนี้"
+            value={`฿${Number(stats.monthRevenue).toLocaleString()}`}
+            icon="📅"
+            color="#3b82f6"
+          />
+
+          <StatCard
+            title="ห้องว่าง"
+            value={stats.availableRooms}
+            icon="🛏️"
             color="#f59e0b"
           />
-          <StatCard 
-            title="ทั้งหมด" 
-            value={bookings.length}
-            icon="📊"
-            color="#10b981"
+
+          <StatCard
+            title="ลูกค้าเข้าพัก"
+            value={stats.checkedIn}
+            icon="👥"
+            color="#8b5cf6"
           />
+
         </div>
 
         {/* Tabs */}
@@ -234,6 +343,12 @@ export default function AdminDashboard() {
             style={styles.tabButton(activeTab === 'topups')}
           >
             💰 เติมเครดิต ({topups.filter(t => t.status === 'pending').length})
+          </button>
+          <button
+            onClick={() => setActiveTab('bookingshistory')}
+            style={styles.tabButton(activeTab === 'bookingshistory')}
+          >
+            🕒 ประวัติการจอง
           </button>
         </div>
 
@@ -276,6 +391,13 @@ export default function AdminDashboard() {
           </div>
         )}
         
+        {/*History Tab */}
+        {activeTab === 'bookingshistory' && (
+          <div style={styles.tabContent}>
+            <h2 style={styles.sectionTitle}>ประวัติการจอง</h2>
+            <BookingHistory />
+          </div>
+        )}
 
         {/* Credits Tab */}
         {activeTab === 'topups' && (
@@ -374,24 +496,82 @@ export default function AdminDashboard() {
 
                   {item.status !== 'approved' && (
 
-                    <button
-                      style={styles.approveBtn}
-                      onClick={async () => {
+          <div style={styles.actionButtons}>
 
-                        await fetch(
-                          `http://localhost:3000/api/topups/${item.id}/approve`,
-                          {
-                            method: "PUT",
-                          }
-                        );
+            {item.status !== 'approved' && (
 
-                        loadTopups();
-                        loadUsers();
+              <button
+                style={styles.approveBtn}
+                onClick={async () => {
 
-                      }}
-                    >
-                      อนุมัติ
-                    </button>
+                  await fetch(
+                    `http://localhost:3000/api/topups/${item.id}/approve`,
+                    {
+                      method: "PUT",
+                    }
+                  );
+
+                  loadTopups();
+                  loadUsers();
+
+                }}
+              >
+                ✅ อนุมัติ
+              </button>
+
+            )}
+
+            <button
+              style={styles.deleteBtn}
+              onClick={async () => {
+
+                const result = await Swal.fire({
+                  title: 'ยืนยันการลบ?',
+                  text: 'สลิปนี้จะถูกลบถาวร',
+                  icon: 'warning',
+                  showCancelButton: true,
+                  confirmButtonText: 'ลบ',
+                  cancelButtonText: 'ยกเลิก',
+                  confirmButtonColor: '#ef4444',
+                  cancelButtonColor: '#6b7280',
+                });
+
+                if (!result.isConfirmed) return;
+
+                try {
+
+                  await fetch(
+                    `http://localhost:3000/api/topups/${item.id}`,
+                    {
+                      method: "DELETE",
+                    }
+                  );
+
+                  Swal.fire({
+                    title: 'สำเร็จ',
+                    text: 'ลบสลิปเรียบร้อย',
+                    icon: 'success',
+                  });
+
+                  loadTopups();
+
+                } catch (err) {
+
+                  Swal.fire({
+                    title: 'ผิดพลาด',
+                    text: 'ลบสลิปไม่สำเร็จ',
+                    icon: 'error',
+                  });
+
+                }
+
+              }}
+            >
+              🗑 ลบ
+            </button>
+
+          </div>
+                    
 
                   )}
 
@@ -576,18 +756,6 @@ const styles = {
     borderRadius: "12px",
     marginTop: "10px",
   },
-
-  approveBtn: {
-    marginTop: "15px",
-    width: "100%",
-    padding: "12px",
-    border: "none",
-    borderRadius: "10px",
-    background: "#16a34a",
-    color: "#fff",
-    fontWeight: "700",
-    cursor: "pointer",
-  },
   topupHeader: {
   display: "flex",
   justifyContent: "space-between",
@@ -670,6 +838,32 @@ confirmPopupBtn: {
   border: "none",
   borderRadius: "12px",
   background: "linear-gradient(135deg,#10b981,#059669)",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer",
+},
+actionButtons: {
+  display: "flex",
+  gap: "10px",
+  marginTop: "15px",
+},
+approveBtn: {
+  flex: 1,
+  padding: "12px",
+  border: "none",
+  borderRadius: "12px",
+  background: "linear-gradient(135deg,#22c55e,#16a34a)",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer",
+},
+
+deleteBtn: {
+  flex: 1,
+  padding: "12px",
+  border: "none",
+  borderRadius: "12px",
+  background: "linear-gradient(135deg,#ef4444,#dc2626)",
   color: "#fff",
   fontWeight: "700",
   cursor: "pointer",

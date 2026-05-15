@@ -9,6 +9,12 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
     return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleString('th-TH');
+  };
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.tableContainer}>
@@ -16,10 +22,11 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
           <thead>
             <tr style={styles.headerRow}>
               <th style={styles.th}>👤 ชื่อผู้เข้าพัก</th>
+              <th style={styles.th}>📞 โทรศัพท์</th>
               <th style={styles.th}>🛏️ ห้อง</th>
               <th style={styles.th}>📋 ประเภท</th>
-              <th style={styles.th}>📅 เข้าพัก</th>
-              <th style={styles.th}>📅 ออกพัก</th>
+              <th style={styles.th}>📅 วันที่เข้าพัก</th>
+              <th style={styles.th}>📅 วันที่ออกพัก</th>
               <th style={styles.th}>🏷️ สถานะ</th>
               <th style={styles.th}>⚙️ จัดการ</th>
             </tr>
@@ -37,6 +44,7 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
                 onMouseOut={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? "#f9fafb" : "#fff"}
               >
                 <td style={styles.td}><strong>{b.guest_name}</strong></td>
+                <td style={styles.td}><a href={`tel:${b.guest_phone}`}>{b.guest_phone || '-'}</a></td>
                 <td style={styles.td}>{b.room_number || b.room_id}</td>
                 <td style={styles.td}>{b.room_type || '-'}</td>
                 <td style={styles.td}>{formatDate(b.check_in)}</td>
@@ -44,14 +52,27 @@ export default function BookingTable({ bookings = [], onCheckout, onCheckin }) {
                 <td style={styles.td}>
                   <span style={{
                     ...styles.badge,
-                    backgroundColor: b.status === 'checked_in' ? '#d1fae5' : '#fef3c7',
-                    color: b.status === 'checked_in' ? '#065f46' : '#92400e',
+                background:
+                  b.status === 'booked'
+                    ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+                    : b.status === 'checked_in'
+                    ? 'linear-gradient(135deg,#22c55e,#16a34a)'
+                    : 'linear-gradient(135deg,#ef4444,#dc2626)',
+
+                color: '#fff',
+
+                boxShadow:
+                  b.status === 'booked'
+                    ? '0 6px 16px rgba(245,158,11,0.25)'
+                    : b.status === 'checked_in'
+                    ? '0 6px 16px rgba(34,197,94,0.25)'
+                    : '0 6px 16px rgba(239,68,68,0.25)',
                   }}>
                     {
                       b.status === "booked"
                         ? "⏳ ยังไม่เข้าพัก"
                         : b.status === "checked_in"
-                        ? "✅ เข้าพักแล้ว"
+                        ? "✅ เช็คอินเแล้ว"
                         : "✔ เช็คเอาท์แล้ว"
                     }
                   </span>
@@ -117,10 +138,6 @@ const styles = {
     borderRadius: "20px",
     fontSize: "13px",
     fontWeight: "500",
-  },
-  actionGroup: {
-    display: "flex",
-    gap: "8px",
   },
   btnCheckin: {
     padding: "10px 18px",
