@@ -5,6 +5,7 @@ const path = require("path");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 
+
 const JWT_SECRET = "rvc_hotel_secret_key_2026";
 
 const storage = multer.diskStorage({
@@ -165,6 +166,34 @@ router.put("/:id/approve", async (req, res) => {
       error: "Server error",
     });
   }
+  router.delete("/:id", async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    await db.query(
+      "DELETE FROM topups WHERE id = ?",
+      [id]
+    );
+
+    res.json({
+      success: true,
+      message: "ลบสลิปสำเร็จ"
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "ลบสลิปไม่สำเร็จ"
+    });
+
+  }
+
+});
 });
 
 module.exports = router;

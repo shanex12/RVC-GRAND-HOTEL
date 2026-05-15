@@ -3,11 +3,14 @@ const cors = require('cors');
 const db = require('./db');
 const topupRoutes = require('./routes/topups');
 const app = express();
+const dashboardRoutes = require("./routes/dashboard");
+
 
 app.use(cors());
 app.use(express.json());
 app.use('/api/topups', topupRoutes);
 app.use('/uploads', express.static('uploads'));
+app.use('/api/dashboard', dashboardRoutes);
 
 async function ensureDatabaseColumns() {
   try {

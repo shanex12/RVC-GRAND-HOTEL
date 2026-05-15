@@ -11,6 +11,7 @@ router.post('/', async (req, res) => {
 
   const {
     guest_name,
+    guest_phone,
     room_id,
     check_in,
     check_out
@@ -136,7 +137,7 @@ router.post('/', async (req, res) => {
     if (userCredit < totalAmount) {
 
       return res.status(400).json({
-        error: 'เครดิตไม่เพียงพอ'
+        error: 'เครดิตไม่เพียงพอกรุณาเติมเครดิต'
       });
 
     }
@@ -157,23 +158,36 @@ router.post('/', async (req, res) => {
 
     // ===== CREATE BOOKING =====
 
+    const now = new Date();
+
+    const checkInDateTime =
+      check_in + " " +
+      now.toTimeString().split(" ")[0];
+
+    const checkOutDateTime =
+      check_out + " " +
+      now.toTimeString().split(" ")[0];
+
     const [result] = await db.query(
       `
       INSERT INTO bookings
       (
         guest_name,
+        guest_phone,
         room_id,
         check_in,
         check_out,
-        status
+        status,
+        
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?)
       `,
       [
         guest_name,
+        guest_phone,
         room_id,
-        check_in,
-        check_out,
+        checkInDateTime,
+        checkOutDateTime,
         'booked'
       ]
     );
@@ -183,7 +197,7 @@ router.post('/', async (req, res) => {
     await db.query(
       `
       UPDATE rooms
-      SET status = 'occupied'
+      SET status = 'booked'
       WHERE id = ?
       `,
       [room_id]
@@ -232,6 +246,32 @@ router.get('/active', async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   }
 });
+// ===== BOOKING HISTORY =====
+router.get('/history', async (req, res) => {
+
+  try {
+
+    const [rows] = await db.query(`
+      SELECT 
+        b.*,
+        r.name AS room_number
+      FROM bookings b
+      LEFT JOIN rooms r
+      ON b.room_id = r.id
+      ORDER BY b.id DESC
+    `);
+
+    res.json(rows);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: 'โหลด history ไม่สำเร็จ'
+    });
+  }
+});
 
 // ===== CHECKIN =====
 router.put('/:id/checkin', async (req, res) => {
@@ -239,7 +279,13 @@ router.put('/:id/checkin', async (req, res) => {
 
   try {
     await db.query(
-      'UPDATE bookings SET status = ? WHERE id = ?',
+      `
+      UPDATE bookings
+      SET
+        status = ?,
+        check_in = NOW()
+      WHERE id = ?
+      `,
       ['checked_in', id]
     );
     res.json({ message: 'Checked in' });
@@ -268,7 +314,13 @@ router.put('/:id/checkout', async (req, res) => {
 
     // อัพเดท booking status
     await db.query(
-      'UPDATE bookings SET status = ? WHERE id = ?',
+      `
+      UPDATE bookings
+      SET
+        status = ?,
+        check_out = NOW()
+      WHERE id = ?
+      `,
       ['checked_out', id]
     );
 
@@ -282,6 +334,33 @@ router.put('/:id/checkout', async (req, res) => {
   } catch (err) {
     console.error('Checkout error:', err.message);
     res.status(500).json({ error: 'Checkout failed' });
+  }
+});
+// ===== BOOKING HISTORY =====
+router.get('/history', async (req, res) => {
+  try {
+
+    const [rows] = await db.query(`
+      SELECT 
+        b.*,
+        r.name AS room_name,
+        r.room_type
+      FROM bookings b
+      LEFT JOIN rooms r
+      ON b.room_id = r.id
+      ORDER BY b.id DESC
+    `);
+
+    res.json(rows);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: 'โหลดประวัติไม่สำเร็จ'
+    });
+
   }
 });
 
