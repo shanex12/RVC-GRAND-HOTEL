@@ -8,6 +8,7 @@ import CustomerBooking from "./pages/CustomerBooking";
 import { AdminRoute, ProtectedRoute, PublicRoute } from "./components/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import MyBookings from "./pages/MyBookings";
 
 
 export default function App() {
@@ -60,6 +61,19 @@ export default function App() {
               <AdminDashboard />
             </AppLayout>
           </AdminRoute>
+        }
+      />
+      <Route
+        path="/my-bookings"
+        element={
+          <ProtectedRoute>
+            <AppLayout
+              onLogout={handleLogout}
+              isAdmin={user?.role === 'admin'}
+            >
+              <MyBookings />
+            </AppLayout>
+          </ProtectedRoute>
         }
       />
       {/* Fallback */}
@@ -159,6 +173,13 @@ function AppLayout({ children, onLogout, isAdmin }) {
               <span>จองห้อง</span>
             </Link>
           )}
+          <Link
+              to="/my-bookings"
+              style={styles.navLink(location.pathname === "/my-bookings")}
+            >
+              <span style={{ marginRight: '12px' }}>📖</span>
+              <span>ประวัติการจอง</span>
+            </Link>
         </nav>
 
         {/* User Section */}

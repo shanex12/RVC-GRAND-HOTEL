@@ -24,9 +24,18 @@ export default function CustomerBooking() {
   const [creditAmount, setCreditAmount] = useState(100);
   const [topupSlip, setTopupSlip] = useState(null);
   const [topupSlipPreview, setTopupSlipPreview] = useState("");
+  useEffect(() => {
+  return () => {
+    if (topupSlipPreview) {
+      URL.revokeObjectURL(topupSlipPreview);
+    }
+  };
+}, [topupSlipPreview]);
   const [searchCheckIn, setSearchCheckIn] = useState("");
   const [searchCheckOut, setSearchCheckOut] = useState("");
   const [searchGuests, setSearchGuests] = useState(1);
+  const [activeBookings, setActiveBookings] = useState([]);
+  const [appliedSearch, setAppliedSearch] = useState(false);
 
   
 
@@ -50,10 +59,29 @@ export default function CustomerBooking() {
         typeText.includes("double") ||
         typeText.includes("เตียงคู่") ||
         typeText.includes("คู่") ||
-        (room.capacity && Number(room.capacity) >= 2)
+        (room.bed_type === "double" && room.capacity && Number(room.capacity) >= 2)
       );
     }
     return true;
+  };
+
+  // ✅ ฟังก์ชันตรวจสอบการแย้งการจอง (ลดโค้ดซ้ำ)
+  const checkRoomConflict = (roomId, checkIn = searchCheckIn, checkOut = searchCheckOut) => {
+    return activeBookings.some((booking) => {
+      if (booking.room_id !== roomId) {
+        return false;
+      }
+
+      const bookingCheckIn = booking.check_in?.slice(0, 10) || booking.check_in;
+      const bookingCheckOut = booking.check_out?.slice(0, 10) || booking.check_out;
+
+      if (!checkIn || !checkOut) {
+        const today = new Date().toISOString().split("T")[0];
+        return bookingCheckIn <= today && bookingCheckOut > today;
+      }
+
+      return bookingCheckIn < checkOut && bookingCheckOut > checkIn;
+    });
   };
 
   const filteredRooms = rooms.filter((room) => {
@@ -71,8 +99,7 @@ export default function CustomerBooking() {
     const capacityMatch =
       !searchGuests || Number(room.capacity) >= Number(searchGuests);
 
-    const availableMatch =
-      room.status === "available";
+      const availableMatch = !checkRoomConflict(room.id);
     return (
     matchesSearch &&
     matchesCategory(room) &&
@@ -81,15 +108,32 @@ export default function CustomerBooking() {
   );
   });
 
-  const loadRooms = async () => {
-    try {
-      const data = await getRooms();
-      setRooms(data);
-    } catch (err) {
-      console.error('Error loading rooms:', err);
-      setRooms([]);
-    }
-  };
+const loadRooms = async () => {
+
+  try {
+
+    const roomData = await getRooms();
+
+    const bookingRes = await fetch(
+      "http://localhost:3000/api/bookings/active"
+    );
+
+    const bookingData = await bookingRes.json();
+
+    setRooms(roomData);
+
+    setActiveBookings(bookingData);
+
+  } catch (err) {
+
+    console.error('Error loading rooms:', err);
+
+    setRooms([]);
+    setActiveBookings([]);
+
+  }
+
+};
 
   const getTodayDate = () => {
     const today = new Date();
@@ -106,14 +150,15 @@ export default function CustomerBooking() {
     return checkIn.toISOString().split("T")[0];
   };
 
-  const calculateNights = (checkIn, checkOut) => {
-    const inDate = new Date(checkIn);
-    const outDate = new Date(checkOut);
+const calculateNights = (checkIn, checkOut) => {
 
-    const diffTime = outDate - inDate;
+  const inDate = new Date(checkIn);
+  const outDate = new Date(checkOut);
 
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
+  const diffTime = outDate - inDate;
+
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
 
 
   const handleSelectRoom = (room) => {
@@ -121,8 +166,8 @@ export default function CustomerBooking() {
     setShowBookingModal(true);
     setGuestName("");
     setGuestPhone("");
-    setCheckInDate("");
-    setCheckOutDate("");
+    setCheckInDate(searchCheckIn || "");
+    setCheckOutDate(searchCheckOut || "");
   };
 
     const handleBooking = async () => {
@@ -159,18 +204,33 @@ export default function CustomerBooking() {
         room_id: selectedRoom.id,
         check_in: checkInDate,
         check_out: checkOutDate,
-      });
+      }
+      , token);
 
       setBookingId(result.id);
       setBookingSuccess(true);
+      window.open(
+        `http://localhost:3000/api/receipt/${result.id}`,
+        "_blank"
+      );
 
       refreshUser();
 
-      setTimeout(() => {
-        setShowBookingModal(false);
-        setBookingSuccess(false);
-        loadRooms();
-      }, 1500);
+      useEffect(() => {
+        let timer;
+
+        if (bookingSuccess) {
+          timer = setTimeout(() => {
+            setShowBookingModal(false);
+            setBookingSuccess(false);
+            loadRooms();
+          }, 1500);
+        }
+
+        return () => {
+          clearTimeout(timer);
+        };
+      }, [bookingSuccess]);
 
     } catch (err) {
       setBookingError(err.message || "จองไม่สำเร็จ");
@@ -268,6 +328,20 @@ export default function CustomerBooking() {
                   >
                     เติมเครดิต
                   </button>
+                  {user?.role === "admin" && (
+                    <button
+                      style={{
+                        ...styles.dropdownItem,
+                        borderTop: '1px solid #e0f2fe'
+                      }}
+                      onClick={() => {
+                        navigate("/admin");
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      จัดการผู้ใช้
+                    </button>
+                  )}
                   <button style={{...styles.dropdownItem, borderTop: '1px solid #e0f2fe'}}>
                     โปรไฟล์
                   </button>
@@ -278,7 +352,7 @@ export default function CustomerBooking() {
         </div>
         
         <div style={styles.heroSection}>
-          <h1   style={{...styles.heroTitle,fontSize: window.innerWidth < 768 ? "42px" : "72px",}}
+          <h1   style={{...styles.heroTitle}}
           >
             Welcome to RVC Grand Hotel
           </h1>
@@ -414,10 +488,15 @@ export default function CustomerBooking() {
                 key={room.id} 
                 style={styles.roomCard}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateY(-8px)";
-                  e.currentTarget.style.boxShadow = "0 20px 40px rgba(0, 0, 0, 0.15)";
-                  e.currentTarget.style.borderColor = "#d4af37";
+                  const roomAvailable = !checkRoomConflict(room.id);
+
+                  if (roomAvailable) {
+                    e.currentTarget.style.transform = "translateY(-8px)";
+                    e.currentTarget.style.boxShadow = "0 20px 40px rgba(0, 0, 0, 0.15)";
+                    e.currentTarget.style.borderColor = "#d4af37";
+                  }
                 }}
+
                 onMouseOut={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
                   e.currentTarget.style.boxShadow = "0 10px 30px rgba(0, 0, 0, 0.08)";
@@ -439,31 +518,47 @@ export default function CustomerBooking() {
                     <span style={styles.amenityIcon} title="อาหารเช้า">🍳</span>
                     <span style={styles.amenityText}>บริการอาหารเช้า</span>
                   </div>
-                  <p style={styles.roomStatus}>สถานะ: {room.status === 'available' ? '🟢 ว่าง' : '🔴 ไม่ว่าง'}</p>
+                  <p style={styles.roomStatus}>
+                    สถานะ: {checkRoomConflict(room.id) ? '🔴 ไม่ว่าง' : '🟢 ว่าง'}
+                  </p>
                   <p style={styles.roomCapacity}>👥 ความจุ: {room.capacity} คน</p>
                   <div style={styles.priceBox}>
                     <span style={styles.price}>฿{room.price}</span>
                     <span style={styles.priceLabel}>บาท/คืน</span>
                   </div>
-                  <button
-                    style={room.status === 'available' ? styles.bookButton : styles.disabledButton}
-                    onClick={() => room.status === 'available' && handleSelectRoom(room)}
-                    disabled={room.status !== 'available'}
-                    onMouseOver={(e) => {
-                      if (room.status === 'available') {
-                        e.currentTarget.style.backgroundColor = "#2d2d2d";
-                        e.currentTarget.style.transform = "translateY(-2px)";
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (room.status === 'available') {
-                        e.currentTarget.style.backgroundColor = "#1a1a1a";
-                        e.currentTarget.style.transform = "translateY(0)";
-                      }
-                    }}
-                  >
-                    {room.status === 'available' ? '💳 จองห้อง' : '🚫 ไม่ว่าง'}
-                  </button>
+                    {(() => {
+                      const roomAvailable = !checkRoomConflict(room.id);
+
+                      return (
+                        <button
+                          style={
+                            roomAvailable
+                              ? styles.bookButton
+                              : styles.disabledButton
+                          }
+                          onClick={() =>
+                            roomAvailable && handleSelectRoom(room)
+                          }
+                          disabled={!roomAvailable}
+                          onMouseOver={(e) => {
+                            if (roomAvailable) {
+                              e.currentTarget.style.backgroundColor = "#2d2d2d";
+                              e.currentTarget.style.transform = "translateY(-2px)";
+                            }
+                          }}
+                          onMouseOut={(e) => {
+                            if (roomAvailable) {
+                              e.currentTarget.style.backgroundColor = "#1a1a1a";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }
+                          }}
+                        >
+                          {roomAvailable
+                            ? "💳 จองห้อง"
+                            : "🚫 ไม่ว่าง"}
+                        </button>
+                      );
+                    })()}
                 </div>
               </div>
             ))}
@@ -682,7 +777,9 @@ export default function CustomerBooking() {
 
                       if (file) {
                         setTopupSlip(file);
-                        setTopupSlipPreview(URL.createObjectURL(file));
+                        const previewUrl = URL.createObjectURL(file);
+
+                        setTopupSlipPreview(previewUrl);
                       }
                     }}
                     style={{ marginTop: "15px" }}
@@ -875,7 +972,7 @@ const styles = {
     borderRadius: "16px",
   },
   modalHeader: {
-    center: "center",
+    textAlign: "center",
     padding: "25px",
     borderBottom: "2px solid rgba(212,175,55,0.2)",
     display: "flex",
@@ -1189,7 +1286,7 @@ const styles = {
   },
 
   heroTitle: {
-  fontSize: "72px",
+  fontSize: "clamp(42px, 8vw, 72px)",
   fontWeight: "800",
   lineHeight: 1.05,
   marginBottom: "18px",

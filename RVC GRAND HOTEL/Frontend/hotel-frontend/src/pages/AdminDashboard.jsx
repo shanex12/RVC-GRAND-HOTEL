@@ -9,6 +9,7 @@ import BookingHistory  from '../components/BookingHistory';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { getDashboardStats } from '../api/admin';
+import ActivityLogs from '../components/ActivityLogs';
 
 
 export default function AdminDashboard() {
@@ -30,7 +31,7 @@ export default function AdminDashboard() {
   availableRooms: 0,
   checkedIn: 0,
 });
-
+  const [logs, setLogs] = useState([]);
 
   const loadBookings = async () => {
     try {
@@ -67,7 +68,7 @@ export default function AdminDashboard() {
       setLoading(true);
       setError(null);
       try {
-        await Promise.all([loadBookings(), loadRooms(), loadUsers(), loadTopups(), loadDashboardStats()]);
+        await Promise.all([loadBookings(), loadRooms(), loadUsers(), loadTopups(), loadDashboardStats(), loadLogs()]);
       } catch (err) {
         console.error('Dashboard init error:', err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -187,56 +188,77 @@ const handleCheckout = async (id) => {
   setTopups(data);
 };
 
-  const handleMagicCredit = async () => {
+const handleMagicCredit = async () => {
 
-    if (!magicUsername || !magicAmount) {
-      toast.error("กรอกข้อมูลให้ครบ");
+  if (!magicUsername || !magicAmount) {
+    toast.error("กรอกข้อมูลให้ครบ");
+    return;
+  }
+
+  try {
+
+    const foundUser = users.find(
+      (u) =>
+        u.username.toLowerCase() ===
+        magicUsername.toLowerCase()
+    );
+
+    if (!foundUser) {
+      toast.error("ไม่พบ username");
       return;
     }
 
-    try {
+    await topUpCredit(
+      foundUser.id,
+      Number(magicAmount),
+      token
+    );
 
-      const foundUser = users.find(
-        (u) =>
-          u.username.toLowerCase() ===
-          magicUsername.toLowerCase()
-      );
+    Swal.fire({
+      title: 'สำเร็จ',
+      text: 'เติมเครดิตสำเร็จ',
+      icon: 'success',
+      confirmButtonColor: '#22c55e',
+    });
 
-      if (!foundUser) {
-        toast.error("ไม่พบ username");
-        return;
-      }
+    setMagicUsername("");
+    setMagicAmount("");
+    setShowMagicCredit(false);
 
-      await topUpCredit(
-        foundUser.id,
-        Number(magicAmount),
-        token
-      );
+    loadUsers();
+    loadLogs();
 
-      Swal.fire({
-        title: 'สำเร็จ',
-        text: 'เติมเครดิตสำเร็จ',
-        icon: 'success',
-        confirmButtonColor: '#22c55e',
-      });
+  } catch (err) {
 
-      setMagicUsername("");
-      setMagicAmount("");
-      setShowMagicCredit(false);
+    console.error(err);
 
-      loadUsers();
+    Swal.fire({
+      title: 'ผิดพลาด',
+      text: 'เติมเครดิตไม่สำเร็จ',
+      icon: 'error',
+      confirmButtonColor: '#ef4444',
+    });
 
-    } catch (err) {
+  }
+};
+  const loadLogs = async () => {
 
-      Swal.fire({
-        title: 'ผิดพลาด',
-        text: err.message || 'เติมเครดิตไม่สำเร็จ',
-        icon: 'error',
-        confirmButtonColor: '#ef4444',
-      });
+  try {
 
-    }
-  };
+    const res = await fetch(
+      'http://localhost:3000/api/activity-logs'
+    );
+
+    const data = await res.json();
+
+    setLogs(data);
+
+  } catch (err) {
+
+    console.error(err);
+
+  }
+};
 
   const loadDashboardStats = async () => {
 
@@ -283,7 +305,7 @@ const handleCheckout = async (id) => {
 
           <StatCard
             title="รายได้วันนี้"
-            value={`฿${Number(stats.usedCredit || 0).toLocaleString()}`}
+            value={`฿${Number(stats.todayRevenue).toLocaleString()}`}
             icon="💰"
             color="#22c55e"
           />
@@ -350,6 +372,13 @@ const handleCheckout = async (id) => {
           >
             🕒 ประวัติการจอง
           </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            style={styles.tabButton(activeTab === 'logs')}
+          >
+            📜 ประวัติการทำรายการแอดมิน
+          </button>
+          
         </div>
 
         {/* Bookings Tab */}
@@ -396,6 +425,52 @@ const handleCheckout = async (id) => {
           <div style={styles.tabContent}>
             <h2 style={styles.sectionTitle}>ประวัติการจอง</h2>
             <BookingHistory />
+          </div>
+        )}
+        {/* Logs Tab */}
+        {activeTab === 'logs' && (
+          <div style={styles.tabContent}>
+
+            <h2 style={styles.sectionTitle}>
+              📜 ประวัติการทำรายการทั้งหมด
+            </h2>
+
+            {logs.length === 0 ? (
+
+              <div style={styles.emptyState}>
+                ไม่มี activity logs
+              </div>
+
+            ) : (
+
+              <div style={styles.logsContainer}>
+
+                {logs.map((log) => (
+
+                  <div key={log.id} style={styles.logCard}>
+
+                    <div style={styles.logMessage}>
+                      <span style={{ fontWeight: "700", color: "#4f46e5" }}>
+                        {log.admin_name}
+                      </span>
+
+                      {" — "}
+
+                      {log.action}
+                    </div>
+
+                    <div style={styles.logTime}>
+                      {new Date(log.created_at).toLocaleString("th-TH")}
+                    </div>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
           </div>
         )}
 
@@ -504,12 +579,15 @@ const handleCheckout = async (id) => {
                 style={styles.approveBtn}
                 onClick={async () => {
 
-                  await fetch(
-                    `http://localhost:3000/api/topups/${item.id}/approve`,
-                    {
-                      method: "PUT",
-                    }
-                  );
+                await fetch(
+                  `http://localhost:3000/api/topups/${item.id}/approve`,
+                  {
+                    method: "PUT",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                    },
+                  }
+                );
 
                   loadTopups();
                   loadUsers();
@@ -867,5 +945,42 @@ deleteBtn: {
   color: "#fff",
   fontWeight: "700",
   cursor: "pointer",
+},
+logsBox: {
+  display: "flex",
+  flexDirection: "column",
+  gap: "12px",
+},
+
+logItem: {
+  padding: "16px",
+  borderRadius: "12px",
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+},
+logsContainer: {
+  display: "flex",
+  flexDirection: "column",
+  gap: "14px",
+},
+
+logCard: {
+  padding: "16px 18px",
+  borderRadius: "14px",
+  background: "#f9fafb",
+  border: "1px solid #e5e7eb",
+  transition: "0.2s",
+},
+
+logMessage: {
+  fontSize: "15px",
+  fontWeight: "600",
+  color: "#111827",
+  marginBottom: "6px",
+},
+
+logTime: {
+  fontSize: "13px",
+  color: "#6b7280",
 },
 };

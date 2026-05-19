@@ -71,26 +71,37 @@ export async function getUsers(token) {
   }
 }
 /* ฟังก์ชันเติมเครดิต */
-export async function topUpCredit(userId, amount, token) {
-  try {
-    const res = await fetch(`${API_URL}/auth/users/${userId}/credit`, {
-      method: 'PUT',
+export const topUpCredit = async (
+  userId,
+  amount,
+  token
+) => {
+
+  const res = await fetch(
+    "http://localhost:3000/api/topups/magic",
+    {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ credit: amount })
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Top up failed');
+      body: JSON.stringify({
+        userId,
+        amount,
+      }),
     }
-    return await res.json();
-  } catch (err) {
-    console.error('Top up credit error:', err);
-    throw err;
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(
+      data.error || "เติมเครดิตไม่สำเร็จ"
+    );
   }
-}
+
+  return data;
+};
 /* ประวัติการจอง*/
 export async function getBookingHistory() {
 

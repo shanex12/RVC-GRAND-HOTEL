@@ -23,29 +23,22 @@ export const getRooms = async () => {
   return await res.json();
 };
 
-export async function createBooking(data) {
+export const createBooking = async (bookingData, token) => {
+  const res = await fetch("http://localhost:3000/api/bookings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(bookingData),
+  });
 
-  const token = localStorage.getItem("token");
-
-  const res = await fetch(
-    "http://localhost:3000/api/bookings",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-
-      body: JSON.stringify(data),
-    }
-  );
-
-  const result = await res.json();
+  const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(result.error);
+    console.log(data);
+    throw new Error(data.error || "Booking failed");
   }
 
-  return result;
-
-}
+  return data;
+};
