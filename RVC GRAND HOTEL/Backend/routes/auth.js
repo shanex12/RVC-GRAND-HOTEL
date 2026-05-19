@@ -3,6 +3,7 @@ const db = require('../db');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
+
 const router = express.Router();
 const JWT_SECRET = 'rvc_hotel_secret_key_2026';
 
@@ -12,13 +13,18 @@ function hashPassword(password) {
 }
 
 // Helper: Generate JWT
-function generateToken(user) {
+const generateToken = (user) => {
   return jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    {
+      id: user.id,
+      role: user.role,
+    },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    {
+      expiresIn: "7d",
+    }
   );
-}
+};
 
 // Register
 router.post('/register', async (req, res) => {
@@ -51,7 +57,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = hashPassword(password);
     await db.query(
       'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-      [username, email, hashedPassword, 'user']
+      [username, email, hashedPassword, 'customer']
     );
 
     return res.status(201).json({ 
@@ -126,11 +132,24 @@ function verifyToken(req, res, next) {
   }
 }
 
-function verifyAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'สิทธิ์ไม่เพียงพอ' });
-  }
-  next();
+function allowRoles(...roles) {
+
+  return (req, res, next) => {
+
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Unauthorized'
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        error: 'Forbidden'
+      });
+    }
+
+    next();
+  };
 }
 
 // Get current user
@@ -152,7 +171,11 @@ router.get('/me', verifyToken, async (req, res) => {
   }
 });
 
-router.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+router.get(
+  '/users',
+  verifyToken,
+  allowRoles('admin'),
+  async (req, res) => {
   try {
     const [rows] = await db.query('SELECT id, username, email, role, credit FROM users');
     res.json(rows || []);
@@ -162,7 +185,11 @@ router.get('/users', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-router.put('/users/:id/credit', verifyToken, verifyAdmin, async (req, res) => {
+router.put(
+  '/users/:id/credit',
+  verifyToken,
+  allowRoles('admin'),
+  async (req, res) => {
   const userId = req.params.id;
   const { credit } = req.body;
 
@@ -185,4 +212,9 @@ router.put('/users/:id/credit', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-module.exports = { router, verifyToken };
+
+module.exports = {
+  router,
+  verifyToken,
+  allowRoles
+};

@@ -4,7 +4,7 @@ const multer = require("multer");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
-
+const logActivity = require('../utils/logActivity');
 
 const JWT_SECRET = "rvc_hotel_secret_key_2026";
 
@@ -48,7 +48,7 @@ router.post(
       const slip_image = req.file
         ? req.file.filename
         : null;
-
+      
       await db.query(
         `
         INSERT INTO topups
@@ -112,6 +112,19 @@ router.put("/:id/approve", async (req, res) => {
 
   try {
 
+    // ===== GET ADMIN FROM TOKEN =====
+
+    const token =
+      req.headers.authorization?.split(" ")[1];
+
+    const decoded = jwt.verify(
+      token,
+      JWT_SECRET
+    );
+
+    const adminName =
+      decoded.username;
+
     const id = req.params.id;
 
     const [rows] = await db.query(
@@ -154,6 +167,13 @@ router.put("/:id/approve", async (req, res) => {
       [id]
     );
 
+    // ===== ACTIVITY LOG =====
+
+    await logActivity(
+      adminName,
+      `อนุมัติเติมเครดิตให้ user ID ${topup.user_id} จำนวน ${topup.amount} เครดิต`
+    );
+
     res.json({
       success: true,
     });
@@ -165,8 +185,11 @@ router.put("/:id/approve", async (req, res) => {
     res.status(500).json({
       error: "Server error",
     });
+
   }
-  router.delete("/:id", async (req, res) => {
+
+  });
+router.delete("/:id", async (req, res) => {
 
   try {
 
@@ -194,6 +217,80 @@ router.put("/:id/approve", async (req, res) => {
   }
 
 });
+
+// ===== MAGIC CREDIT =====
+router.post("/magic", async (req, res) => {
+
+  try {
+
+    console.log("BODY:", req.body);
+
+    const token =
+      req.headers.authorization?.split(" ")[1];
+
+    console.log("TOKEN:", token);
+
+    if (!token) {
+      return res.status(401).json({
+        error: "Unauthorized",
+      });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      JWT_SECRET
+    );
+
+    console.log("DECODED:", decoded);
+
+    const adminName =
+      decoded.username;
+
+    const { userId, amount } = req.body;
+
+    console.log(userId, amount);
+
+    await db.query(
+      `
+      UPDATE users
+      SET credit = credit + ?
+      WHERE id = ?
+      `,
+      [amount, userId]
+    );
+
+    const [users] = await db.query(
+      `
+      SELECT username
+      FROM users
+      WHERE id = ?
+      `,
+      [userId]
+    );
+
+    console.log(users);
+
+    const user = users[0];
+
+    await logActivity(
+      adminName,
+      `เสกเครดิตให้ ${user.username} จำนวน ${amount} เครดิต`
+    );
+
+    res.json({
+      success: true,
+    });
+
+  } catch (err) {
+
+    console.error("MAGIC ERROR:", err);
+
+    res.status(500).json({
+      error: "เติมเครดิตไม่สำเร็จ",
+    });
+
+  }
+
 });
 
 module.exports = router;

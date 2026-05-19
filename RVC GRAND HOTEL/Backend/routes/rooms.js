@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const {
+  verifyToken,
+  allowRoles
+} = require("./auth");
 
 // GET /api/rooms
 router.get('/', async (req, res) => {
@@ -103,6 +107,62 @@ router.delete('/:id', async (req, res) => {
     console.error('❌ Delete room error:', err.message);
     res.status(500).json({ error: 'ลบห้องไม่สำเร็จ', details: err.message });
   }
+});
+// ===== GET AVAILABLE ROOMS =====
+router.get("/available", async (req, res) => {
+
+  const { check_in, check_out } = req.query;
+
+  try {
+
+    // ถ้ายังไม่เลือกวัน → ส่งทุกห้อง
+    if (!check_in || !check_out) {
+
+      const [rooms] = await db.query(`
+        SELECT *
+        FROM rooms
+        ORDER BY id DESC
+      `);
+
+      return res.json(rooms);
+    }
+
+    // ห้องที่ยังว่าง
+    const [rooms] = await db.query(
+      `
+      SELECT *
+      FROM rooms
+      WHERE id NOT IN (
+
+        SELECT room_id
+        FROM bookings
+        WHERE status IN ('booked', 'checked_in')
+        AND (
+          check_in < ?
+          AND check_out > ?
+        )
+
+      )
+      ORDER BY id DESC
+      `,
+      [
+        check_out,
+        check_in
+      ]
+    );
+
+    res.json(rooms);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "โหลดห้องว่างไม่สำเร็จ"
+    });
+
+  }
+
 });
 
 module.exports = router;

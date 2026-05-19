@@ -1,13 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = 'rvc_hotel_secret_key_2026';
 const db = require('../db');
+const logActivity = require('../utils/logActivity');
+const auth = require("../authMiddleware");
+const {
+  verifyToken,
+  allowRoles
+} = require("./auth");
 
 
 
 // ===== CREATE BOOKING =====
-router.post('/', async (req, res) => {
+router.post("/", auth, async (req, res) => {
 
   const {
     guest_name,
@@ -25,32 +29,6 @@ router.post('/', async (req, res) => {
 
   try {
 
-    // ===== CHECK TOKEN =====
-
-    const token = req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({
-        error: 'กรุณาเข้าสู่ระบบ'
-      });
-    }
-
-    let decoded;
-
-    try {
-
-      decoded = jwt.verify(
-        token,
-        JWT_SECRET
-      );
-
-    } catch {
-
-      return res.status(401).json({
-        error: 'Token ไม่ถูกต้อง'
-      });
-    }
-
     // ===== CHECK ROOM =====
 
     const [rooms] = await db.query(
@@ -66,28 +44,24 @@ router.post('/', async (req, res) => {
 
     // ===== CHECK DATE CONFLICT =====
 
+    const checkInDateTime = check_in + " 14:00:00";
+    const checkOutDateTime = check_out + " 12:00:00";
+
     const [conflicts] = await db.query(
       `
       SELECT id
       FROM bookings
       WHERE room_id = ?
-      AND status != 'checked_out'
+      AND status IN ('booked', 'checked_in')
       AND (
-        (check_in <= ? AND check_out > ?)
-        OR
-        (check_in < ? AND check_out >= ?)
-        OR
-        (check_in >= ? AND check_out <= ?)
+        check_in < ?
+        AND check_out > ?
       )
       `,
       [
         room_id,
-        check_out,
-        check_in,
-        check_out,
-        check_in,
-        check_in,
-        check_out
+        checkOutDateTime,
+        checkInDateTime
       ]
     );
 
@@ -127,8 +101,19 @@ router.post('/', async (req, res) => {
       FROM users
       WHERE id = ?
       `,
-      [decoded.id]
+      [req.user.id]
     );
+
+    console.log("REQ USER =", req.user);
+    console.log("USERS =", users);
+
+    if (!users || users.length === 0) {
+
+      return res.status(404).json({
+        error: "ไม่พบ user นี้ในฐานข้อมูล"
+      });
+
+    }
 
     const userCredit = Number(
       users[0].credit || 0
@@ -152,56 +137,41 @@ router.post('/', async (req, res) => {
       `,
       [
         totalAmount,
-        decoded.id
+        req.user.id
       ]
     );
 
     // ===== CREATE BOOKING =====
 
-    const now = new Date();
-
-    const checkInDateTime =
-      check_in + " " +
-      now.toTimeString().split(" ")[0];
-
-    const checkOutDateTime =
-      check_out + " " +
-      now.toTimeString().split(" ")[0];
-
     const [result] = await db.query(
       `
       INSERT INTO bookings
       (
+        user_id,
         guest_name,
         guest_phone,
         room_id,
         check_in,
         check_out,
         status,
+        total_price
         
       )
-      VALUES (?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
+        req.user.id,
         guest_name,
         guest_phone,
         room_id,
         checkInDateTime,
         checkOutDateTime,
-        'booked'
+        'booked',
+        totalAmount
       ]
     );
 
     // ===== UPDATE ROOM =====
-
-    await db.query(
-      `
-      UPDATE rooms
-      SET status = 'booked'
-      WHERE id = ?
-      `,
-      [room_id]
-    );
 
     res.json({
       success: true,
@@ -246,33 +216,7 @@ router.get('/active', async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   }
 });
-// ===== BOOKING HISTORY =====
-router.get('/history', async (req, res) => {
-
-  try {
-
-    const [rows] = await db.query(`
-      SELECT 
-        b.*,
-        r.name AS room_number
-      FROM bookings b
-      LEFT JOIN rooms r
-      ON b.room_id = r.id
-      ORDER BY b.id DESC
-    `);
-
-    res.json(rows);
-
-  } catch (err) {
-
-    console.error(err);
-
-    res.status(500).json({
-      error: 'โหลด history ไม่สำเร็จ'
-    });
-  }
-});
-
+// ===== CHECKIN =====
 // ===== CHECKIN =====
 router.put('/:id/checkin', async (req, res) => {
   const id = req.params.id;
@@ -282,11 +226,15 @@ router.put('/:id/checkin', async (req, res) => {
       `
       UPDATE bookings
       SET
-        status = ?,
-        check_in = NOW()
+        status = ?
       WHERE id = ?
       `,
       ['checked_in', id]
+    );
+
+    await logActivity(
+    'admin',
+    `เช็คอิน booking ID ${id}`
     );
     res.json({ message: 'Checked in' });
   } catch (err) {
@@ -300,36 +248,21 @@ router.put('/:id/checkout', async (req, res) => {
   const id = req.params.id;
 
   try {
-    // ได้ room_id จาก booking
-    const [bookings] = await db.query(
-      'SELECT room_id FROM bookings WHERE id = ?',
-      [id]
-    );
 
-    if (bookings.length === 0) {
-      return res.status(404).json({ error: 'Booking not found' });
-    }
-
-    const roomId = bookings[0].room_id;
-
-    // อัพเดท booking status
     await db.query(
       `
       UPDATE bookings
       SET
-        status = ?,
-        check_out = NOW()
+        status = ?
       WHERE id = ?
       `,
       ['checked_out', id]
     );
 
-    // อัพเดท room status เป็น available
-    await db.query(
-      'UPDATE rooms SET status = ? WHERE id = ?',
-      ['available', roomId]
+    await logActivity(
+      'admin',
+      `เช็คเอาท์ booking ID ${id}`
     );
-
     res.json({ success: true, message: 'Checked out' });
   } catch (err) {
     console.error('Checkout error:', err.message);
@@ -362,6 +295,124 @@ router.get('/history', async (req, res) => {
     });
 
   }
+});
+/*===== DASHBOARD STATS ===== */
+router.get('/dashboard-stats', async (req, res) => {
+
+  try {
+
+    const [rooms] = await db.query(`
+      SELECT COUNT(*) AS totalRooms
+      FROM rooms
+    `);
+
+    const [checkedIn] = await db.query(`
+      SELECT COUNT(*) AS checkedIn
+      FROM bookings
+      WHERE status = 'checked_in'
+    `);
+
+    const [revenue] = await db.query(`
+      SELECT SUM(total_price) AS revenue
+      FROM bookings
+      WHERE status IN ('checked_in', 'checked_out')
+    `);
+
+    res.json({
+      totalRooms: rooms[0].totalRooms || 0,
+      checkedIn: checkedIn[0].checkedIn || 0,
+      revenue: revenue[0].revenue || 0,
+    });
+
+  } catch (err) {
+
+    console.error(err);
+    res.status(500).json({
+      message: 'โหลด dashboard ไม่สำเร็จ'
+    });
+
+  }
+
+});
+
+router.put("/:id/cancel", auth, async (req, res) => {
+
+  const bookingId = req.params.id;
+
+  try {
+
+    // หา booking
+    const [rows] = await db.query(
+      `
+      SELECT *
+      FROM bookings
+      WHERE id = ?
+      `,
+      [bookingId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        error: "ไม่พบรายการจอง"
+      });
+    }
+
+    const booking = rows[0];
+
+    // เช็คว่าเป็นเจ้าของ booking ไหม
+    if (booking.user_id !== req.user.id) {
+      return res.status(403).json({
+        error: "ไม่มีสิทธิ์"
+      });
+    }
+
+    if (
+      booking.status === "checked_in" ||
+      booking.status === "checked_out"
+    ) {
+      return res.status(400).json({
+        error: "ไม่สามารถยกเลิกได้"
+      });
+    }
+
+    // คืนเครดิต
+    await db.query(
+      `
+      UPDATE users
+      SET credit = credit + ?
+      WHERE id = ?
+      `,
+      [
+        booking.total_price,
+        req.user.id
+      ]
+    );
+
+    // เปลี่ยนสถานะ booking
+    await db.query(
+      `
+      UPDATE bookings
+      SET status = 'cancelled'
+      WHERE id = ?
+      `,
+      [bookingId]
+    );
+
+    res.json({
+      success: true,
+      message: "ยกเลิกการจองสำเร็จ"
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "ยกเลิกไม่สำเร็จ"
+    });
+
+  }
+
 });
 
 module.exports = router;

@@ -1,9 +1,15 @@
+require("dotenv").config();
+
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
 const topupRoutes = require('./routes/topups');
 const app = express();
 const dashboardRoutes = require("./routes/dashboard");
+const activityRoutes = require('./routes/activityLogs');
+const receiptRoutes = require("./routes/receipt");
+const myBookingsRoutes = require("./routes/myBookings");
+
 
 
 app.use(cors());
@@ -11,6 +17,9 @@ app.use(express.json());
 app.use('/api/topups', topupRoutes);
 app.use('/uploads', express.static('uploads'));
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/activity-logs', activityRoutes);
+app.use("/api/receipt", receiptRoutes);
+app.use("/api/my-bookings", myBookingsRoutes);
 
 async function ensureDatabaseColumns() {
   try {
