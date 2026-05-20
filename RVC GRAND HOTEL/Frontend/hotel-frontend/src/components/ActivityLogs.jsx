@@ -1,34 +1,52 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+
+
 
 export default function ActivityLogs() {
 
+  const { token } = useAuth();
+
   const [logs, setLogs] = useState([]);
 
-  useEffect(() => {
+useEffect(() => {
 
+  if (token) {
     loadLogs();
+  }
 
-  }, []);
+}, [token]);
 
-  const loadLogs = async () => {
+const loadLogs = async () => {
 
-    try {
+  try {
 
-      const res = await fetch(
-        "http://localhost:3000/api/bookings/logs"
-      );
+const token = localStorage.getItem("token");
 
-      const data = await res.json();
+const res = await fetch(
+  "http://localhost:3000/api/activity-logs",
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
 
-      setLogs(data);
+    const data = await res.json();
 
-    } catch (err) {
+    console.log(data);
 
-      console.error(err);
+    setLogs(Array.isArray(data) ? data : []);
 
-    }
+  } catch (err) {
 
-  };
+    console.error(err);
+
+    setLogs([]);
+
+  }
+
+};
 
   if (logs.length === 0) {
 

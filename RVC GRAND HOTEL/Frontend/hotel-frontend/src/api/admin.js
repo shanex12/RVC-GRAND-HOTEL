@@ -1,40 +1,54 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = "http://localhost:3000/api";
 
-// ดึงการจองทั้งหมด (booked + checked_in)
-export async function getActiveBookings() {
+// ดึงการจองทั้งหมด
+export async function getActiveBookings(token) {
   try {
-    const res = await fetch(`${API_URL}/bookings/active`);
+    const res = await fetch(`${API_URL}/bookings/active`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
     if (!res.ok) {
-      console.error('Error:', res.status, res.statusText);
+      console.error("Error:", res.status, res.statusText);
       return [];
     }
+
     return await res.json();
+
   } catch (err) {
-    console.error('Fetch error:', err);
+    console.error("Fetch error:", err);
     return [];
   }
 }
 
 // ดึงห้องทั้งหมด
-export async function getAllRooms() {
+export async function getAllRooms(token) {
   try {
-    const res = await fetch(`${API_URL}/rooms`);
+    const res = await fetch(`${API_URL}/rooms`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
     if (!res.ok) {
-      console.error('Error:', res.status, res.statusText);
+      console.error("Error:", res.status, res.statusText);
       return [];
     }
+
     return await res.json();
+
   } catch (err) {
-    console.error('Fetch error:', err);
+    console.error("Fetch error:", err);
     return [];
   }
 }
 
 // เช็คอิน
-export const checkinBooking = async (id, token) => {
+export async function checkinBooking(id, token) {
 
   const res = await fetch(
-    `http://localhost:3000/api/bookings/${id}/checkin`,
+    `${API_URL}/bookings/${id}/checkin`,
     {
       method: "PUT",
       headers: {
@@ -51,110 +65,94 @@ export const checkinBooking = async (id, token) => {
   }
 
   return data;
-};
-
-// เช็กเอาท์
-export async function checkoutBooking(id) {
-  try {
-    const res = await fetch(`${API_URL}/bookings/${id}/checkout`, {
-      method: 'PUT'
-    });
-    if (!res.ok) throw new Error('Checkout failed');
-    return await res.json();
-  } catch (err) {
-    console.error('Checkout error:', err);
-    throw err;
-  }
 }
+export async function getBookingCalendar(token) {
+  const res = await fetch(`${API_URL}/bookings/calendar`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-export async function getUsers(token) {
-  try {
-    const res = await fetch(`${API_URL}/auth/users`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    });
-    if (!res.ok) throw new Error('Fetch users failed');
-    return await res.json();
-  } catch (err) {
-    console.error('Fetch users error:', err);
-    return [];
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "โหลดตารางจองไม่สำเร็จ");
   }
+
+  return data;
 }
-/* ฟังก์ชันเติมเครดิต */
-export const topUpCredit = async (
-  userId,
-  amount,
-  token
-) => {
+// เช็คเอาท์
+export async function checkoutBooking(id, token) {
 
   const res = await fetch(
-    "http://localhost:3000/api/topups/magic",
+    `${API_URL}/bookings/${id}/checkout`,
     {
-      method: "POST",
+      method: "PUT",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        userId,
-        amount,
-      }),
     }
   );
 
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(
-      data.error || "เติมเครดิตไม่สำเร็จ"
-    );
+    throw new Error(data.error || "Checkout failed");
   }
 
   return data;
-};
-/* ประวัติการจอง*/
+}
 export async function getBookingHistory(token) {
 
   const res = await fetch(
-    'http://localhost:3000/api/bookings/history',
+    `${API_URL}/bookings/history`,
     {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     }
   );
 
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.error);
+    throw new Error(data.error || "โหลดประวัติไม่สำเร็จ");
   }
 
   return data;
 }
-/* สถิติแดชบอร์ด */
-export const getDashboardStats = async () => {
 
-  const res = await fetch(
-    "http://localhost:3000/api/dashboard/stats"
-  );
+export async function getDashboardStats(token) {
+  const res = await fetch(`${API_URL}/dashboard/stats`, {
+    headers: token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {},
+  });
 
-  return await res.json();
-
-};
-export async function getBookingCalendar(token) {
-
-  const res = await fetch(
-    'http://localhost:3000/api/bookings/calendar',
-    {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    }
-  );
+  const data = await res.json();
 
   if (!res.ok) {
-    throw new Error('โหลด calendar ไม่สำเร็จ');
+    throw new Error(data.message || "โหลดสถิติไม่สำเร็จ");
   }
 
-  return res.json();
+  return data;
+}
+
+export async function getUsers(token) {
+  const res = await fetch(`${API_URL}/auth/users`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "โหลดผู้ใช้ไม่สำเร็จ");
+  }
+
+  return data;
 }

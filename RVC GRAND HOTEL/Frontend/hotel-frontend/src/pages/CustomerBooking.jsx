@@ -82,7 +82,7 @@ export default function CustomerBooking() {
 
   // ✅ ฟังก์ชันตรวจสอบการแย้งการจอง (ลดโค้ดซ้ำ)
   const checkRoomConflict = (roomId, checkIn = searchCheckIn, checkOut = searchCheckOut) => {
-    return activeBookings.some((booking) => {
+    return (activeBookings || []).some((booking) => {
       if (booking.room_id !== roomId) {
         return false;
       }
@@ -130,14 +130,19 @@ const loadRooms = async () => {
     const roomData = await getRooms();
 
     const bookingRes = await fetch(
-      "http://localhost:3000/api/bookings/active"
+      "http://localhost:3000/api/bookings/active",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
 
     const bookingData = await bookingRes.json();
 
     setRooms(roomData);
 
-    setActiveBookings(bookingData);
+    setActiveBookings(Array.isArray(bookingData) ? bookingData : []);
 
   } catch (err) {
 

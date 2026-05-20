@@ -90,8 +90,8 @@ export default function BookingHistory() {
                 <td style={styles.td}>{b.guest_phone}</td>
                 <td style={styles.td}>{b.room_number || b.room_id}</td>
                 <td style={styles.td}>{formatDate(b.check_in)}</td>
-                <td style={styles.td}>{formatDateTime(b.status === 'checked_in' ? b.check_in : b.check_out)}</td>
-                <td style={styles.td}>{formatDateTime(b.status === 'checked_out' ? b.check_out : '-')}</td>
+                <td style={styles.td}>{formatDateTime(b.checked_in_at)}</td>
+                <td style={styles.td}>{formatDateTime(b.checked_out_at)}</td>
                 <td style={styles.td}>
                   <span style={{
                     ...styles.badge,
