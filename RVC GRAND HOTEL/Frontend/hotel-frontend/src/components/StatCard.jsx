@@ -13,6 +13,7 @@ export default function StatCard({ title, value, icon = "📊", color = "#667eea
   );
 }
 
+
 const styles = {
   card: {
     background: "#fff",

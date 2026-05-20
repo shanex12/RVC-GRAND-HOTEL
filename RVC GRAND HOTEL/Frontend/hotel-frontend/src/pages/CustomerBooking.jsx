@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 
 export default function CustomerBooking() {
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, refreshUser  } = useAuth();
   const [rooms, setRooms] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all"); // all | single | double
@@ -42,6 +42,21 @@ export default function CustomerBooking() {
   useEffect(() => {
     loadRooms();
   }, []);
+        useEffect(() => {
+        let timer;
+
+        if (bookingSuccess) {
+          timer = setTimeout(() => {
+            setShowBookingModal(false);
+            setBookingSuccess(false);
+            loadRooms();
+          }, 1500);
+        }
+
+        return () => {
+          clearTimeout(timer);
+        };
+      }, [bookingSuccess]);
 
   const matchesCategory = (room) => {
     if (!category || category === "all") return true;
@@ -216,22 +231,6 @@ const calculateNights = (checkIn, checkOut) => {
 
       refreshUser();
 
-      useEffect(() => {
-        let timer;
-
-        if (bookingSuccess) {
-          timer = setTimeout(() => {
-            setShowBookingModal(false);
-            setBookingSuccess(false);
-            loadRooms();
-          }, 1500);
-        }
-
-        return () => {
-          clearTimeout(timer);
-        };
-      }, [bookingSuccess]);
-
     } catch (err) {
       setBookingError(err.message || "จองไม่สำเร็จ");
     } finally {
@@ -328,20 +327,6 @@ const calculateNights = (checkIn, checkOut) => {
                   >
                     เติมเครดิต
                   </button>
-                  {user?.role === "admin" && (
-                    <button
-                      style={{
-                        ...styles.dropdownItem,
-                        borderTop: '1px solid #e0f2fe'
-                      }}
-                      onClick={() => {
-                        navigate("/admin");
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      จัดการผู้ใช้
-                    </button>
-                  )}
                   <button style={{...styles.dropdownItem, borderTop: '1px solid #e0f2fe'}}>
                     โปรไฟล์
                   </button>

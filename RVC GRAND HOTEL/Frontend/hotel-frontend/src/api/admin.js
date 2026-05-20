@@ -31,18 +31,27 @@ export async function getAllRooms() {
 }
 
 // เช็คอิน
-export async function checkinBooking(id) {
-  try {
-    const res = await fetch(`${API_URL}/bookings/${id}/checkin`, {
-      method: 'PUT'
-    });
-    if (!res.ok) throw new Error('Checkin failed');
-    return await res.json();
-  } catch (err) {
-    console.error('Checkin error:', err);
-    throw err;
+export const checkinBooking = async (id, token) => {
+
+  const res = await fetch(
+    `http://localhost:3000/api/bookings/${id}/checkin`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Checkin failed");
   }
-}
+
+  return data;
+};
 
 // เช็กเอาท์
 export async function checkoutBooking(id) {
@@ -103,16 +112,21 @@ export const topUpCredit = async (
   return data;
 };
 /* ประวัติการจอง*/
-export async function getBookingHistory() {
+export async function getBookingHistory(token) {
 
   const res = await fetch(
-    'http://localhost:3000/api/bookings/history'
+    'http://localhost:3000/api/bookings/history',
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
   );
 
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.error || 'โหลดประวัติไม่สำเร็จ');
+    throw new Error(data.error);
   }
 
   return data;
@@ -127,3 +141,20 @@ export const getDashboardStats = async () => {
   return await res.json();
 
 };
+export async function getBookingCalendar(token) {
+
+  const res = await fetch(
+    'http://localhost:3000/api/bookings/calendar',
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('โหลด calendar ไม่สำเร็จ');
+  }
+
+  return res.json();
+}

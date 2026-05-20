@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { getBookingHistory } from "../api/admin";
+import { useAuth } from "../context/AuthContext";
 
 export default function BookingHistory() {
 
   const [bookings, setBookings] = useState([]);
+  const { token } = useAuth();
 
   useEffect(() => {
 
@@ -15,7 +17,7 @@ export default function BookingHistory() {
 
     try {
 
-      const data = await getBookingHistory();
+      const data = await getBookingHistory(token);
 
       setBookings(data);
 

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { getActiveBookings, checkoutBooking, checkinBooking, getAllRooms, getUsers, topUpCredit } from '../api/admin';
 import StatCard from '../components/StatCard';
 import BookingTable from '../components/BookingTable';
@@ -10,28 +9,130 @@ import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { getDashboardStats } from '../api/admin';
 import ActivityLogs from '../components/ActivityLogs';
+import { useAuth } from "../context/AuthContext";
+import BookingCalendar from '../components/BookingCalendar';
+import { useNotifications } from "../context/NotificationContext";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar
+} from "recharts";
+const COLORS = [
+  "#3b82f6",
+  "#22c55e",
+  "#f59e0b",
+  "#ef4444",
+];
 
 
 export default function AdminDashboard() {
+  const { user, token } = useAuth();
+  const isStaff = user?.role === "staff";
   const [topups, setTopups] = useState([]);
-  const { token } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const bookingsPerPage = 10;
   const [rooms, setRooms] = useState([]);
   const [users, setUsers] = useState([]);
   const [topUpAmounts, setTopUpAmounts] = useState({});
-  const [showMagicCredit, setShowMagicCredit] = useState(false);
   const [magicUsername, setMagicUsername] = useState("");
   const [magicAmount, setMagicAmount] = useState("");
   const [activeTab, setActiveTab] = useState('bookings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
-  usedCredit: 0,
-  monthRevenue: 0,
-  availableRooms: 0,
-  checkedIn: 0,
+    usedCredit: 0,
+    todayRevenue: 0,
+    monthRevenue: 0,
+    availableRooms: 0,
+    checkedIn: 0,
+  });
+const revenueData = Array.from({ length: 12 }, (_, i) => {
+  const month = i + 1;
+
+  const monthBookings = bookings.filter((b) => {
+    const date = b.created_at
+      ? new Date(b.created_at)
+      : null;
+
+    return date && date.getMonth() + 1 === month;
+  });
+
+  const revenue = monthBookings.reduce(
+    (sum, b) => sum + Number(b.total_price || 0),
+    0
+  );
+
+  return {
+    month: new Date(0, i).toLocaleString("th-TH", {
+      month: "short",
+    }),
+    revenue,
+  };
 });
+
+const bookingStatusData = [
+
+  {
+    name: "Booked",
+    value: bookings.filter(
+      (b) => b.status === "booked"
+    ).length,
+  },
+
+  {
+    name: "Checked In",
+    value: bookings.filter(
+      (b) => b.status === "checked_in"
+    ).length,
+  },
+
+  {
+    name: "Checked Out",
+    value: bookings.filter(
+      (b) => b.status === "checked_out"
+    ).length,
+  },
+
+  {
+    name: "Cancelled",
+    value: bookings.filter(
+      (b) => b.status === "cancelled"
+    ).length,
+  },
+
+];
+
+const roomTypes = {};
+
+rooms.forEach((room) => {
+
+  const type = room.room_type || "Unknown";
+
+  roomTypes[type] =
+    (roomTypes[type] || 0) + 1;
+
+});
+
+const roomData = Object.entries(roomTypes).map(
+  ([room, count]) => ({
+    room,
+    count,
+  })
+);
   const [logs, setLogs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const loadBookings = async () => {
     try {
@@ -54,6 +155,7 @@ export default function AdminDashboard() {
   };
 
   const loadUsers = async () => {
+      if (!token) return;
     try {
       const data = await getUsers(token);
       setUsers(Array.isArray(data) ? data : []);
@@ -62,13 +164,26 @@ export default function AdminDashboard() {
       setUsers([]);
     }
   };
+  
 
   useEffect(() => {
     const initDashboard = async () => {
       setLoading(true);
       setError(null);
       try {
-        await Promise.all([loadBookings(), loadRooms(), loadUsers(), loadTopups(), loadDashboardStats(), loadLogs()]);
+        const tasks = [
+        loadBookings(),
+        loadRooms(),
+        loadTopups(),
+        loadDashboardStats(),
+      ];
+
+      if (!isStaff) {
+        tasks.push(loadUsers());
+        tasks.push(loadLogs());
+      }
+
+      await Promise.all(tasks);
       } catch (err) {
         console.error('Dashboard init error:', err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -77,7 +192,81 @@ export default function AdminDashboard() {
       }
     };
     initDashboard();
-  }, [token]);
+}, [token, isStaff]);
+
+useEffect(() => {
+
+  const newNotifications = [];
+
+topups
+  .filter(t => t.status === "pending")
+  .forEach(t => {
+    newNotifications.push({
+      id: `topup-${t.id}`,
+      message: `มีคำขอเติมเครดิตจาก ${t.username}`,
+      time: t.created_at
+        ? new Date(t.created_at)
+        : new Date(),
+      read: false,
+    });
+  });
+
+  bookings
+    .filter(b => b.status === "booked")
+    .forEach(b => {
+      newNotifications.push({
+        id: `booking-${b.id}`,
+        message: `มีการจองใหม่ ห้อง ${b.room_number}`,
+        time: t.created_at
+        ? new Date(t.created_at)
+        : new Date(),
+        read: false,
+      });
+    });
+
+  setNotifications(newNotifications);
+
+}, [topups, bookings]);
+
+const filteredBookings = bookings.filter((booking) => {
+
+  const keyword = search.toLowerCase();
+
+  const matchesSearch =
+    booking.guest_name?.toLowerCase().includes(keyword)
+    ||
+    booking.guest_phone?.includes(keyword)
+    ||
+    booking.room_number?.toLowerCase().includes(keyword);
+
+  const matchesStatus =
+    statusFilter === "all"
+    ||
+    booking.status === statusFilter;
+
+  return matchesSearch && matchesStatus;
+
+});
+
+const totalPages = Math.max(
+  1,
+  Math.ceil(
+    filteredBookings.length / bookingsPerPage
+  )
+);
+
+const startIndex =
+  (currentPage - 1) * bookingsPerPage;
+
+const paginatedBookings =
+  filteredBookings.slice(
+    startIndex,
+    startIndex + bookingsPerPage
+  );
+
+useEffect(() => {
+  setCurrentPage(1);
+}, [search, statusFilter]);
 
 const handleCheckin = async (id) => {
 
@@ -96,7 +285,7 @@ const handleCheckin = async (id) => {
 
   try {
 
-    await checkinBooking(id);
+    await checkinBooking(id, token);
 
     await Swal.fire({
       title: 'สำเร็จ',
@@ -137,7 +326,7 @@ const handleCheckout = async (id) => {
 
   try {
 
-    await checkoutBooking(id);
+    await checkoutBooking(id, token);
 
     Swal.fire({
       title: 'สำเร็จ',
@@ -177,15 +366,26 @@ const handleCheckout = async (id) => {
     }
   };
 
-  const loadTopups = async () => {
+const loadTopups = async () => {
 
-  const res = await fetch(
-    "http://localhost:3000/api/topups"
-  );
+  try {
 
-  const data = await res.json();
+    const res = await fetch(
+      "http://localhost:3000/api/topups"
+    );
 
-  setTopups(data);
+    const data = await res.json();
+
+    setTopups(Array.isArray(data) ? data : []);
+
+  } catch (err) {
+
+    console.error(err);
+
+    setTopups([]);
+
+  }
+
 };
 
 const handleMagicCredit = async () => {
@@ -223,7 +423,6 @@ const handleMagicCredit = async () => {
 
     setMagicUsername("");
     setMagicAmount("");
-    setShowMagicCredit(false);
 
     loadUsers();
     loadLogs();
@@ -276,8 +475,6 @@ const handleMagicCredit = async () => {
 
 };
 
-  const checkedInCount = bookings.filter(b => b.status === 'checked_in').length;
-
   return (
     <div style={styles.container}>
       <div style={styles.content}>
@@ -285,6 +482,39 @@ const handleMagicCredit = async () => {
           <h1 style={styles.title}>🏨 Admin Dashboard</h1>
           <p style={styles.subtitle}>จัดการการจองและห้องพักของคุณ</p>
         </div>
+
+      <div
+        style={styles.notificationBell}
+        onClick={() =>
+          setShowNotifications(!showNotifications)
+        }
+      >
+        🔔 {notifications.filter(n => !n.read).length}
+      </div>
+
+{showNotifications && (
+        <div style={styles.notificationPanel}>
+
+          {notifications.map((n) => (
+
+            <div
+              key={n.id}
+              style={{
+                padding: "12px",
+                borderBottom: "1px solid #eee",
+              }}
+            >
+              <div>{n.message}</div>
+
+              <small>
+                {n.time.toLocaleTimeString()}
+              </small>
+            </div>
+
+          ))}
+
+        </div>
+        )}
 
         {loading && (
           <div style={styles.loadingBox}>
@@ -333,6 +563,78 @@ const handleMagicCredit = async () => {
 
         </div>
 
+        <div style={styles.chartGrid}>
+
+  {/* Revenue Chart */}
+  <div style={styles.chartCard}>
+    <h3 style={styles.chartTitle}>
+      📈 รายได้รายเดือน
+    </h3>
+
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={revenueData}>
+        <XAxis dataKey="month" />
+        <YAxis />
+        <Tooltip />
+        <Line
+          type="monotone"
+          dataKey="revenue"
+          stroke="#4f46e5"
+          strokeWidth={3}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+
+  {/* Booking Status */}
+  <div style={styles.chartCard}>
+    <h3 style={styles.chartTitle}>
+      🏨 สถานะการจอง
+    </h3>
+
+    <ResponsiveContainer width="100%" height={300}>
+      <PieChart>
+        <Pie
+          data={bookingStatusData}
+          dataKey="value"
+          nameKey="name"
+          outerRadius={100}
+          label
+        >
+          {bookingStatusData.map((entry, index) => (
+            <Cell
+              key={`cell-${index}`}
+              fill={COLORS[index % COLORS.length]}
+            />
+          ))}
+        </Pie>
+        <Tooltip />
+      </PieChart>
+    </ResponsiveContainer>
+  </div>
+
+  {/* Room Type */}
+  <div style={styles.chartCard}>
+    <h3 style={styles.chartTitle}>
+      🛏️ ประเภทห้องยอดนิยม
+    </h3>
+
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={roomData}>
+        <XAxis dataKey="room" />
+        <YAxis />
+        <Tooltip />
+        <Bar
+          dataKey="count"
+          fill="#3b82f6"
+          radius={[8, 8, 0, 0]}
+        />
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+
+</div>        
+
         {/* Tabs */}
         <div style={styles.tabs}>
           <button
@@ -348,6 +650,13 @@ const handleMagicCredit = async () => {
             📋 รายการจอง
           </button>
           <button
+          onClick={() => setActiveTab('calendar')}
+          style={styles.tabButton(activeTab === 'calendar')}
+        >
+          📅 ปฏิทินห้อง
+        </button>
+          {!isStaff && (
+          <button
             onClick={() => setActiveTab('rooms')}
             style={styles.tabButton(activeTab === 'rooms')}
             onMouseOver={(e) => {
@@ -360,6 +669,7 @@ const handleMagicCredit = async () => {
           >
             🛏️ จัดการห้อง
           </button>
+          )}
           <button
             onClick={() => setActiveTab('topups')}
             style={styles.tabButton(activeTab === 'topups')}
@@ -372,12 +682,14 @@ const handleMagicCredit = async () => {
           >
             🕒 ประวัติการจอง
           </button>
+          {!isStaff && (
           <button
             onClick={() => setActiveTab('logs')}
             style={styles.tabButton(activeTab === 'logs')}
           >
             📜 ประวัติการทำรายการแอดมิน
           </button>
+          )}
           
         </div>
 
@@ -385,7 +697,88 @@ const handleMagicCredit = async () => {
         {activeTab === 'bookings' && (
           <div style={styles.tabContent}>
             <h2 style={styles.sectionTitle}>รายชื่อการจองทั้งหมด</h2>
-            <BookingTable bookings={bookings} onCheckin={handleCheckin} onCheckout={handleCheckout} />
+            <div style={styles.filterBar}>
+
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อ / เบอร์ / ห้อง"
+                value={search}
+                onChange={(e) => {
+
+                setSearch(e.target.value);
+
+                setCurrentPage(1);
+
+              }}
+                style={styles.searchInput}
+              />
+
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+
+                  setStatusFilter(e.target.value);
+
+                  setCurrentPage(1);
+
+                }}
+                style={styles.filterSelect}
+              >
+
+                <option value="all">
+                  ทุกสถานะ
+                </option>
+
+                <option value="booked">
+                  booked
+                </option>
+
+                <option value="checked_in">
+                  checked_in
+                </option>
+
+                <option value="checked_out">
+                  checked_out
+                </option>
+
+                <option value="cancelled">
+                  cancelled
+                </option>
+
+              </select>
+
+            </div>
+            <BookingTable bookings={paginatedBookings} onCheckin={handleCheckin} onCheckout={handleCheckout} />
+            <div style={styles.pagination}>
+
+            <button
+              disabled={currentPage === 1}
+              onClick={() =>
+                setCurrentPage(currentPage - 1)
+              }
+              style={styles.pageButton}
+            >
+              ⬅ ก่อนหน้า
+            </button>
+
+            <span style={styles.pageText}>
+              หน้า {currentPage} / {totalPages || 1}
+            </span>
+
+            <button
+              disabled={
+                currentPage === totalPages ||
+                totalPages === 0
+              }
+              onClick={() =>
+                setCurrentPage(currentPage + 1)
+              }
+              style={styles.pageButton}
+            >
+              ถัดไป ➡
+            </button>
+
+          </div>
             {bookings.length === 0 && (
               <div style={styles.emptyState}>
                 <p>✨ ไม่มีการจองในขณะนี้</p>
@@ -393,9 +786,19 @@ const handleMagicCredit = async () => {
             )}
           </div>
         )}
+        {/* Calendar Tab */}
+        {activeTab === 'calendar' && (
+          <div style={styles.tabContent}>
+            <h2 style={styles.sectionTitle}>
+              📅 ปฏิทินการจองห้อง
+            </h2>
+
+            <BookingCalendar />
+          </div>
+        )}
 
         {/* Rooms Tab */}
-        {activeTab === 'rooms' && (
+        {activeTab === 'rooms' && !isStaff && (
           <div style={styles.tabContent}>
             <div style={styles.roomsSection}>
               <div style={styles.addRoomBox}>
@@ -428,7 +831,7 @@ const handleMagicCredit = async () => {
           </div>
         )}
         {/* Logs Tab */}
-        {activeTab === 'logs' && (
+        {activeTab === 'logs' && !isStaff && (
           <div style={styles.tabContent}>
 
             <h2 style={styles.sectionTitle}>
@@ -482,67 +885,6 @@ const handleMagicCredit = async () => {
             <div style={styles.topupHeader}>
             <h2>รายการเติมเครดิต</h2>
 
-            <button
-              style={styles.magicBtn}
-              onClick={() => setShowMagicCredit(true)}
-            >
-              ✨ เสกเครดิต
-            </button>
-            {showMagicCredit && (
-
-            <div style={styles.popupOverlay}>
-
-              <div style={styles.popupBox}>
-
-                <h2 style={styles.popupTitle}>
-                  ✨ เพิ่มเครดิต
-                </h2>
-
-                <input
-                  type="text"
-                  placeholder="Username"
-                  value={magicUsername}
-                  onChange={(e) =>
-                    setMagicUsername(e.target.value)
-                  }
-                  style={styles.popupInput}
-                />
-
-                <input
-                  type="number"
-                  placeholder="จำนวนเครดิต"
-                  value={magicAmount}
-                  onChange={(e) =>
-                    setMagicAmount(e.target.value)
-                  }
-                  style={styles.popupInput}
-                />
-
-                <div style={styles.popupActions}>
-
-                  <button
-                    style={styles.cancelPopupBtn}
-                    onClick={() =>
-                      setShowMagicCredit(false)
-                    }
-                  >
-                    ยกเลิก
-                  </button>
-
-                  <button
-                    style={styles.confirmPopupBtn}
-                    onClick={handleMagicCredit}
-                  >
-                    ยืนยัน
-                  </button>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          )}
           </div>
 
             <div style={styles.topupGrid}>
@@ -588,10 +930,14 @@ const handleMagicCredit = async () => {
                     },
                   }
                 );
-
                   loadTopups();
                   loadUsers();
 
+                  Swal.fire({
+                    title: "สำเร็จ",
+                    text: "อนุมัติการเติมเครดิตแล้ว",
+                    icon: "success",
+                  });
                 }}
               >
                 ✅ อนุมัติ
@@ -674,10 +1020,11 @@ const styles = {
     backgroundColor: "#f5f7fa",
     minHeight: "100vh",
   },
-  content: {
-    maxWidth: "1400px",
-    margin: "0 auto",
-  },
+content: {
+  maxWidth: "1400px",
+  margin: "0 auto",
+  position: "relative",
+},
   header: {
     marginBottom: "40px",
   },
@@ -841,18 +1188,6 @@ const styles = {
   marginBottom: "20px",
 },
 
-magicBtn: {
-  padding: "12px 20px",
-  border: "none",
-  borderRadius: "12px",
-  background: "linear-gradient(135deg,#8b5cf6,#6366f1)",
-  color: "#fff",
-  fontWeight: "700",
-  cursor: "pointer",
-  fontSize: "15px",
-  boxShadow: "0 10px 25px rgba(99,102,241,0.25)",
-},
-
 popupOverlay: {
   position: "fixed",
   top: 0,
@@ -982,5 +1317,101 @@ logMessage: {
 logTime: {
   fontSize: "13px",
   color: "#6b7280",
+},
+filterBar: {
+  display: "flex",
+  gap: "12px",
+  marginBottom: "20px",
+  flexWrap: "wrap",
+},
+
+searchInput: {
+  flex: 1,
+  minWidth: "250px",
+  padding: "12px 14px",
+  borderRadius: "10px",
+  border: "1px solid #d1d5db",
+  fontSize: "14px",
+  outline: "none",
+},
+
+filterSelect: {
+  padding: "12px 14px",
+  borderRadius: "10px",
+  border: "1px solid #d1d5db",
+  fontSize: "14px",
+  background: "#fff",
+},
+
+pagination: {
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: "14px",
+  marginTop: "24px",
+},
+
+pageButton: {
+  padding: "10px 18px",
+  border: "none",
+  borderRadius: "10px",
+  background: "#4f46e5",
+  color: "#fff",
+  fontWeight: "700",
+  cursor: "pointer",
+},
+
+pageText: {
+  fontWeight: "600",
+  color: "#374151",
+},
+chartGrid: {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit,minmax(350px,1fr))",
+  gap: "20px",
+  marginBottom: "40px",
+},
+
+chartCard: {
+  background: "#fff",
+  padding: "20px",
+  borderRadius: "18px",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+},
+
+chartTitle: {
+  marginBottom: "16px",
+  fontSize: "18px",
+  fontWeight: "700",
+  color: "#111827",
+},
+
+notificationBell: {
+  position: "absolute",
+  top: "20px",
+  right: "20px",
+  background: "#ef4444",
+  color: "#fff",
+  width: "42px",
+  height: "42px",
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: "700",
+  cursor: "pointer",
+  boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+},
+
+notificationPanel: {
+  position: "absolute",
+  top: "60px",
+  right: "0",
+  width: "320px",
+  background: "#fff",
+  borderRadius: "16px",
+  boxShadow: "0 15px 35px rgba(0,0,0,0.15)",
+  overflow: "hidden",
+  zIndex: 999,
 },
 };

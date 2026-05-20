@@ -5,11 +5,17 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/AdminDashboard";
 import CustomerBooking from "./pages/CustomerBooking";
-import { AdminRoute, ProtectedRoute, PublicRoute } from "./components/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import MyBookings from "./pages/MyBookings";
-
+import UserManagement from "./pages/UserManagement";
+import ErrorBoundary from "./components/ErrorBoundary";
+import {
+  AdminRoute,
+  ProtectedRoute,
+  PublicRoute,
+  StaffRoute
+} from "./components/ProtectedRoute";
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -58,11 +64,30 @@ export default function App() {
         element={
           <AdminRoute>
             <AppLayout onLogout={handleLogout} isAdmin={true}>
-              <AdminDashboard />
+              <ErrorBoundary>
+                <AdminDashboard />
+            </ErrorBoundary>
             </AppLayout>
           </AdminRoute>
         }
       />
+
+      <Route
+        path="/staff"
+        element={
+          <StaffRoute>
+            <AppLayout
+              onLogout={handleLogout}
+              isAdmin={user?.role === "admin"}
+            >
+                <ErrorBoundary>
+                  <AdminDashboard />
+                </ErrorBoundary>
+            </AppLayout>
+          </StaffRoute>
+        }
+      />
+
       <Route
         path="/my-bookings"
         element={
@@ -74,6 +99,24 @@ export default function App() {
               <MyBookings />
             </AppLayout>
           </ProtectedRoute>
+        }
+        
+      />
+      <Route
+        path="/admin/users"
+        element={
+          user?.role === "admin" ? (
+            <AdminRoute>
+              <AppLayout
+                onLogout={handleLogout}
+                isAdmin={true}
+              >
+                <UserManagement />
+              </AppLayout>
+            </AdminRoute>
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
       {/* Fallback */}
@@ -118,7 +161,8 @@ function AppLayout({ children, onLogout, isAdmin }) {
 
         {/* Navigation */}
         <nav style={styles.nav}>
-          {isAdmin ? (
+          {user?.role === "admin" ||
+            user?.role === "staff" ? (
             <>
               <Link
                 to="/"
@@ -157,6 +201,20 @@ function AppLayout({ children, onLogout, isAdmin }) {
                 <span style={{ marginRight: '12px' }}>📊</span>
                 <span>จัดการระบบ</span>
               </Link>
+              {user?.role === "admin" && (
+                <Link
+                  to="/admin/users"
+                  style={styles.navLink(
+                    location.pathname === "/admin/users"
+                  )}
+                >
+                  <span style={{ marginRight: '12px' }}>
+                    👥
+                  </span>
+
+                  <span>จัดการผู้ใช้</span>
+                </Link>
+              )}
             </>
           ) : (
             <Link
