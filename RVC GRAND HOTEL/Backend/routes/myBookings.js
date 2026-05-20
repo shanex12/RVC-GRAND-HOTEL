@@ -2,9 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const db = require("../db");
-const auth = require("../authMiddleware");
+const { verifyToken } = require('./auth');
 
-router.get("/", auth, async (req, res) => {
+router.get("/", verifyToken, async (req, res) => {
   try {
 
     const userId = req.user.id;

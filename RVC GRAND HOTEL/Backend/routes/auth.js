@@ -17,6 +17,7 @@ const generateToken = (user) => {
   return jwt.sign(
     {
       id: user.id,
+      username: user.username,
       role: user.role,
     },
     JWT_SECRET,
@@ -57,7 +58,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = hashPassword(password);
     await db.query(
       'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
-      [username, email, hashedPassword, 'customer']
+      [username, email, hashedPassword, 'user']
     );
 
     return res.status(201).json({ 
@@ -130,6 +131,22 @@ function verifyToken(req, res, next) {
   } catch (err) {
     return res.status(401).json({ error: 'Token ไม่ถูกต้อง' });
   }
+}
+function verifyAdmin(req, res, next) {
+
+  if (!req.user) {
+    return res.status(401).json({
+      error: "กรุณาเข้าสู่ระบบ"
+    });
+  }
+
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      error: "ไม่มีสิทธิ์"
+    });
+  }
+
+  next();
 }
 
 function allowRoles(...roles) {
@@ -212,9 +229,89 @@ router.put(
   }
 });
 
+// ===== UPDATE ROLE =====
+router.put(
+  '/users/:id/role',
+  verifyToken,
+  allowRoles('admin'),
+  async (req, res) => {
+
+    const userId = req.params.id;
+    const { role } = req.body;
+
+    if (!['admin', 'staff', 'user'].includes(role)) {
+      return res.status(400).json({
+        error: 'role ไม่ถูกต้อง'
+      });
+    }
+
+    try {
+
+      await db.query(
+        `
+        UPDATE users
+        SET role = ?
+        WHERE id = ?
+        `,
+        [role, userId]
+      );
+
+      res.json({
+        success: true,
+        message: 'อัปเดต role สำเร็จ'
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        error: 'เปลี่ยน role ไม่สำเร็จ'
+      });
+
+    }
+  }
+);
+
+// ===== DELETE USER =====
+router.delete(
+  '/users/:id',
+  verifyToken,
+  allowRoles('admin'),
+  async (req, res) => {
+
+    const userId = req.params.id;
+
+    try {
+
+      await db.query(
+        `
+        DELETE FROM users
+        WHERE id = ?
+        `,
+        [userId]
+      );
+
+      res.json({
+        success: true,
+        message: 'ลบผู้ใช้สำเร็จ'
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        error: 'ลบผู้ใช้ไม่สำเร็จ'
+      });
+
+    }
+  }
+);
 
 module.exports = {
   router,
   verifyToken,
+  verifyAdmin,
   allowRoles
 };

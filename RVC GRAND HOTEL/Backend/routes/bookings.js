@@ -2,16 +2,16 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const logActivity = require('../utils/logActivity');
-const auth = require("../authMiddleware");
 const {
   verifyToken,
+  verifyAdmin,
   allowRoles
-} = require("./auth");
+} = require('./auth');
 
 
 
 // ===== CREATE BOOKING =====
-router.post("/", auth, async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
 
   const {
     guest_name,
@@ -92,6 +92,24 @@ router.post("/", auth, async (req, res) => {
 
     const totalAmount =
       roomPrice * nights;
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+const checkInDate = new Date(check_in);
+const checkOutDate = new Date(check_out);
+
+if (checkOutDate <= checkInDate) {
+  return res.status(400).json({
+    error: 'วันเช็คเอาท์ต้องมากกว่าวันเช็คอิน'
+  });
+}
+
+if (checkInDate < today) {
+  return res.status(400).json({
+    error: 'ไม่สามารถจองย้อนหลังได้'
+  });
+}
 
     // ===== CHECK CREDIT =====
 
@@ -217,60 +235,127 @@ router.get('/active', async (req, res) => {
   }
 });
 // ===== CHECKIN =====
-// ===== CHECKIN =====
-router.put('/:id/checkin', async (req, res) => {
-  const id = req.params.id;
+router.put(
+  '/:id/checkin',
+  verifyToken,
+  allowRoles('admin', 'staff'),
+  async (req, res) => {
 
-  try {
-    await db.query(
-      `
-      UPDATE bookings
-      SET
-        status = ?
-      WHERE id = ?
-      `,
-      ['checked_in', id]
-    );
+    const id = req.params.id;
 
-    await logActivity(
-    'admin',
-    `เช็คอิน booking ID ${id}`
-    );
-    res.json({ message: 'Checked in' });
-  } catch (err) {
-    console.error('Checkin error:', err.message);
-    res.status(500).json({ error: 'Check-in failed' });
+    try {
+
+      const [bookingRows] = await db.query(
+        `SELECT status FROM bookings WHERE id = ?`,
+        [id]
+      );
+
+      if (bookingRows.length === 0) {
+        return res.status(404).json({
+          error: 'ไม่พบ booking'
+        });
+      }
+
+      if (bookingRows[0].status !== 'booked') {
+        return res.status(400).json({
+          error: 'เช็คอินไม่ได้'
+        });
+      }
+
+      await db.query(
+        `
+        UPDATE bookings
+        SET status = ?
+        WHERE id = ?
+        `,
+        ['checked_in', id]
+      );
+
+      await logActivity(
+        req.user.username || req.user.role,
+        `เช็คอิน booking ID ${id}`
+      );
+
+      res.json({
+        message: 'Checked in'
+      });
+
+    } catch (err) {
+
+      console.error('Checkin error:', err.message);
+
+      res.status(500).json({
+        error: 'Check-in failed'
+      });
+
+    }
   }
-});
+);
 
 // ===== CHECKOUT =====
-router.put('/:id/checkout', async (req, res) => {
-  const id = req.params.id;
+router.put(
+  '/:id/checkout',
+  verifyToken,
+  allowRoles('admin', 'staff'),
+  async (req, res) => {
 
-  try {
+    const id = req.params.id;
 
-    await db.query(
-      `
-      UPDATE bookings
-      SET
-        status = ?
-      WHERE id = ?
-      `,
-      ['checked_out', id]
-    );
+    try {
 
-    await logActivity(
-      'admin',
-      `เช็คเอาท์ booking ID ${id}`
-    );
-    res.json({ success: true, message: 'Checked out' });
-  } catch (err) {
-    console.error('Checkout error:', err.message);
-    res.status(500).json({ error: 'Checkout failed' });
+      const [bookingRows] = await db.query(
+        `SELECT status FROM bookings WHERE id = ?`,
+        [id]
+      );
+
+      if (bookingRows.length === 0) {
+        return res.status(404).json({
+          error: 'ไม่พบ booking'
+        });
+      }
+
+      if (bookingRows[0].status !== 'checked_in') {
+        return res.status(400).json({
+          error: 'เช็คเอาท์ไม่ได้'
+        });
+      }
+
+      await db.query(
+        `
+        UPDATE bookings
+        SET status = ?
+        WHERE id = ?
+        `,
+        ['checked_out', id]
+      );
+
+      await logActivity(
+        req.user.username || req.user.role,
+        `เช็คเอาท์ booking ID ${id}`
+      );
+
+      res.json({
+        success: true,
+        message: 'Checked out'
+      });
+
+    } catch (err) {
+
+      console.error('Checkout error:', err.message);
+
+      res.status(500).json({
+        error: 'Checkout failed'
+      });
+
+    }
   }
-});
+);
 // ===== BOOKING HISTORY =====
-router.get('/history', async (req, res) => {
+router.get(
+  '/history',
+  verifyToken,
+  allowRoles('admin', 'staff'),
+  async (req, res) => {
   try {
 
     const [rows] = await db.query(`
@@ -297,7 +382,11 @@ router.get('/history', async (req, res) => {
   }
 });
 /*===== DASHBOARD STATS ===== */
-router.get('/dashboard-stats', async (req, res) => {
+router.get(
+  '/dashboard-stats',
+  verifyToken,
+  verifyAdmin,
+  async (req, res) => {
 
   try {
 
@@ -335,7 +424,7 @@ router.get('/dashboard-stats', async (req, res) => {
 
 });
 
-router.put("/:id/cancel", auth, async (req, res) => {
+router.put("/:id/cancel", verifyToken, async (req, res) => {
 
   const bookingId = req.params.id;
 
@@ -414,5 +503,42 @@ router.put("/:id/cancel", auth, async (req, res) => {
   }
 
 });
+
+router.get(
+  '/calendar',
+  verifyToken,
+  allowRoles('admin', 'staff'),
+  async (req, res) => {
+
+    try {
+
+      const [rows] = await db.query(`
+        SELECT
+          b.id,
+          b.room_id,
+          r.name AS room_name,
+          b.check_in,
+          b.check_out,
+          b.status
+        FROM bookings b
+        LEFT JOIN rooms r
+        ON b.room_id = r.id
+        WHERE b.status IN ('booked', 'checked_in')
+      `);
+
+      res.json(rows);
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        error: 'โหลด calendar ไม่สำเร็จ'
+      });
+
+    }
+
+  }
+);
 
 module.exports = router;
