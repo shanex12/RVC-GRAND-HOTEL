@@ -207,33 +207,36 @@ if (checkInDate < today) {
   }
 });
 
-// ===== GET ALL BOOKINGS =====
-router.get('/', async (req, res) => {
-  try {
-    const [rows] = await db.query('SELECT * FROM bookings');
-    res.json(rows || []);
-  } catch (err) {
-    console.error('Get bookings error:', err.message);
-    res.status(500).json({ error: 'Database error' });
-  }
-});
+// ===== GET ACTIVE BOOKINGS =====
+router.get(
+  '/active',
+  verifyToken,
+  allowRoles('admin', 'staff'),
+  async (req, res) => {
+    try {
 
-// ===== GET ACTIVE BOOKINGS (booked + checked_in) =====
-router.get('/active', async (req, res) => {
-  try {
-    const [rows] = await db.query(`
-      SELECT b.*, r.name AS room_number, r.room_type
-      FROM bookings b
-      LEFT JOIN rooms r ON b.room_id = r.id
-      WHERE b.status IN ('booked', 'checked_in')
-      ORDER BY b.id DESC
-    `);
-    res.json(rows || []);
-  } catch (err) {
-    console.error('Active bookings error:', err.message);
-    res.status(500).json({ error: 'Database error' });
+      const [rows] = await db.query(`
+        SELECT b.*, r.name AS room_number, r.room_type
+        FROM bookings b
+        LEFT JOIN rooms r ON b.room_id = r.id
+        WHERE b.status IN ('booked', 'checked_in')
+        ORDER BY b.id DESC
+      `);
+
+      res.json(rows || []);
+
+    } catch (err) {
+
+      console.error('Active bookings error:', err.message);
+
+      res.status(500).json({
+        error: 'Database error'
+      });
+
+    }
   }
-});
+);
+
 // ===== CHECKIN =====
 router.put(
   '/:id/checkin',
@@ -262,14 +265,16 @@ router.put(
         });
       }
 
-      await db.query(
-        `
-        UPDATE bookings
-        SET status = ?
-        WHERE id = ?
-        `,
-        ['checked_in', id]
-      );
+        await db.query(
+          `
+          UPDATE bookings
+          SET
+            status = ?,
+            checked_in_at = NOW()
+          WHERE id = ?
+          `,
+          ['checked_in', id]
+        );
 
       await logActivity(
         req.user.username || req.user.role,
@@ -323,7 +328,9 @@ router.put(
       await db.query(
         `
         UPDATE bookings
-        SET status = ?
+        SET
+          status = ?,
+          checked_out_at = NOW()
         WHERE id = ?
         `,
         ['checked_out', id]

@@ -1,18 +1,29 @@
 const jwt = require("jsonwebtoken");
 
 const JWT_SECRET =
-  "rvc_hotel_secret_key_2026";
+  process.env.JWT_SECRET;
 
 function verifyToken(req, res, next) {
 
-  const token =
-    req.headers.authorization?.split(" ")[1];
+  const authHeader =
+    req.headers.authorization;
 
-  if (!token) {
+  console.log(
+    "AUTH HEADER:",
+    authHeader
+  );
+
+  if (
+    !authHeader ||
+    !authHeader.startsWith("Bearer ")
+  ) {
     return res.status(401).json({
       error: "Unauthorized",
     });
   }
+
+  const token =
+    authHeader.split(" ")[1];
 
   try {
 
@@ -21,11 +32,15 @@ function verifyToken(req, res, next) {
       JWT_SECRET
     );
 
+    console.log("USER:", decoded);
+
     req.user = decoded;
 
     next();
 
   } catch (err) {
+
+    console.error(err);
 
     return res.status(401).json({
       error: "Invalid token",

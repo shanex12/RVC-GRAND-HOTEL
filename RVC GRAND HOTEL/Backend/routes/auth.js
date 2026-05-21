@@ -118,7 +118,11 @@ router.post('/login', async (req, res) => {
 
 // Verify token middleware
 function verifyToken(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1];
+  const authHeader = req.headers.authorization;
+
+  const token = authHeader && authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : null;
 
   if (!token) {
     return res.status(401).json({ error: 'ไม่มี token' });

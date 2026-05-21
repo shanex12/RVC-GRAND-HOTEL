@@ -2,11 +2,13 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const jwt = require("jsonwebtoken");
 const db = require("../db");
 const logActivity = require('../utils/logActivity');
+const {
+  verifyToken,
+  allowRoles
+} = require("./auth");
 
-const JWT_SECRET = "rvc_hotel_secret_key_2026";
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -22,28 +24,20 @@ const upload = multer({ storage });
 
 router.post(
   "/",
+  verifyToken,
   upload.single("slip"),
   async (req, res) => {
 
     try {
-
-      const token =
-        req.headers.authorization?.split(" ")[1];
-
-      if (!token) {
-        return res.status(401).json({
-          error: "Unauthorized",
-        });
-      }
-
-      const decoded = jwt.verify(
-        token,
-        JWT_SECRET
-      );
-
-      const user_id = decoded.id;
+      const user_id = req.user.id;
 
       const { amount } = req.body;
+
+      if (!amount || Number(amount) <= 0) {
+        return res.status(400).json({
+          error: "จำนวนเงินไม่ถูกต้อง"
+        });
+      }
 
       const slip_image = req.file
         ? req.file.filename
@@ -83,7 +77,11 @@ router.post(
     }
   }
 );
-router.get("/", async (req, res) => {
+router.get(
+  "/",
+  verifyToken,
+  allowRoles("admin", "staff"),
+  async (req, res) => {
 
   try {
 
@@ -108,22 +106,17 @@ router.get("/", async (req, res) => {
     });
   }
 });
-router.put("/:id/approve", async (req, res) => {
+router.put(
+  "/:id/approve",
+  verifyToken,
+  allowRoles("admin", "staff"),
+  async (req, res) => {
 
   try {
 
     // ===== GET ADMIN FROM TOKEN =====
 
-    const token =
-      req.headers.authorization?.split(" ")[1];
-
-    const decoded = jwt.verify(
-      token,
-      JWT_SECRET
-    );
-
-    const adminName =
-      decoded.username;
+    const adminName = req.user.username;
 
     const id = req.params.id;
 
@@ -189,7 +182,11 @@ router.put("/:id/approve", async (req, res) => {
   }
 
   });
-router.delete("/:id", async (req, res) => {
+router.delete(
+  "/:id",
+  verifyToken,
+  allowRoles("admin"),
+  async (req, res) => {
 
   try {
 
@@ -219,34 +216,24 @@ router.delete("/:id", async (req, res) => {
 });
 
 // ===== MAGIC CREDIT =====
-router.post("/magic", async (req, res) => {
+router.post(
+  "/magic",
+  verifyToken,
+  allowRoles("admin"),
+  async (req, res) => {
 
   try {
 
     console.log("BODY:", req.body);
 
-    const token =
-      req.headers.authorization?.split(" ")[1];
-
-    console.log("TOKEN:", token);
-
-    if (!token) {
-      return res.status(401).json({
-        error: "Unauthorized",
-      });
-    }
-
-    const decoded = jwt.verify(
-      token,
-      JWT_SECRET
-    );
-
-    console.log("DECODED:", decoded);
-
-    const adminName =
-      decoded.username;
+    const adminName = req.user.username;
 
     const { userId, amount } = req.body;
+    if (!userId || !amount || Number(amount) <= 0) {
+      return res.status(400).json({
+        error: "ข้อมูลไม่ถูกต้อง"
+      });
+    }
 
     console.log(userId, amount);
 

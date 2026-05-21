@@ -2,8 +2,16 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+const {
+  verifyToken,
+  allowRoles
+} = require("./auth");
 // ดึง activity logs ทั้งหมด
-router.get('/', async (req, res) => {
+router.get(
+  '/',
+  verifyToken,
+  allowRoles("admin", "staff"),
+  async (req, res) => {
   try {
 
     const [rows] = await db.query(`

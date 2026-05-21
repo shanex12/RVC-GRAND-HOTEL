@@ -18,7 +18,11 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/rooms - สร้างห้องใหม่
-router.post('/', async (req, res) => {
+router.post(
+  '/',
+  verifyToken,
+  allowRoles('admin'),
+  async (req, res) => {
   const { name, room_type, capacity, price } = req.body;
 
   // ตรวจสอบข้อมูล
@@ -48,7 +52,11 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/rooms/:id - แก้ไขห้อง
-router.put('/:id', async (req, res) => {
+router.put(
+  '/:id',
+  verifyToken,
+  allowRoles('admin'),
+  async (req, res) => {
   const id = req.params.id;
   const { name, room_type, capacity, price } = req.body;
 
@@ -84,15 +92,24 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/rooms/:id - ลบห้อง
-router.delete('/:id', async (req, res) => {
+router.delete(
+  '/:id',
+  verifyToken,
+  allowRoles('admin'),
+  async (req, res) => {
   const id = req.params.id;
 
   try {
     // ตรวจสอบว่ามีการจองอยู่หรือไม่
-    const [bookings] = await db.query(
-      'SELECT id FROM bookings WHERE room_id = ? AND status != ?',
-      [id, 'checked_out']
-    );
+  const [bookings] = await db.query(
+    `
+    SELECT id
+    FROM bookings
+    WHERE room_id = ?
+    AND status IN ('booked', 'checked_in')
+    `,
+    [id]
+  );
 
     if (bookings.length > 0) {
       return res.status(400).json({ error: 'ไม่สามารถลบห้องนี้ได้เพราะมีการจองอยู่' });
