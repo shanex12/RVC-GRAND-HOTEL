@@ -2,7 +2,14 @@
 const API = 'http://localhost:3000/api';
 
 export async function getBookings() {
-  const res = await fetch(`${API}/bookings`);
+
+  const res = await fetch(
+    `${API_URL}/bookings`,
+    {
+      headers: authHeaders()
+    }
+  );
+
   return res.json();
 }
 
