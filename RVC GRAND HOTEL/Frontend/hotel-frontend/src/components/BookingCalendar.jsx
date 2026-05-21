@@ -9,10 +9,10 @@ export default function BookingCalendar() {
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-
-    loadCalendar();
-
-  }, []);
+    if (token) {
+      loadCalendar();
+    }
+  }, [token]);
 
   const loadCalendar = async () => {
 

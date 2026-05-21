@@ -6,6 +6,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  console.log("loading =", loading);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -64,7 +65,12 @@ export default function Login() {
             <div style={styles.passwordWrapper}>
               <input
                 type={showPassword ? 'text' : 'password'}
-                style={styles.input}
+                style={{
+                  ...styles.input,
+                  opacity: loading ? 0.7 : 1,
+                  cursor: loading ? 'not-allowed' : 'text'
+                  
+                }}
                 placeholder="กรุณากรอกรหัสผ่าน"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
