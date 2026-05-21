@@ -4,7 +4,6 @@ const db = require('../db');
 const logActivity = require('../utils/logActivity');
 const {
   verifyToken,
-  verifyAdmin,
   allowRoles
 } = require('./auth');
 
@@ -162,6 +161,7 @@ if (checkInDate < today) {
     // ===== CREATE BOOKING =====
 
     const [result] = await db.query(
+      
       `
       INSERT INTO bookings
       (
@@ -392,7 +392,7 @@ router.get(
 router.get(
   '/dashboard-stats',
   verifyToken,
-  verifyAdmin,
+  allowRoles('admin'),
   async (req, res) => {
 
   try {
@@ -541,6 +541,40 @@ router.get(
 
       res.status(500).json({
         error: 'โหลด calendar ไม่สำเร็จ'
+      });
+
+    }
+
+  }
+);
+
+router.get(
+  "/",
+  verifyToken,
+  allowRoles("admin", "staff"),
+  async (req, res) => {
+
+    try {
+
+      const [rows] = await db.query(`
+        SELECT
+          b.*,
+          r.name AS room_name,
+          r.room_type
+        FROM bookings b
+        LEFT JOIN rooms r
+        ON b.room_id = r.id
+        ORDER BY b.id DESC
+      `);
+
+      res.json(rows);
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        error: "โหลด booking ไม่สำเร็จ"
       });
 
     }
