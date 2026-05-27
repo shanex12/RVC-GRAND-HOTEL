@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 
 
 export default function MyBookings() {
@@ -200,13 +201,25 @@ export default function MyBookings() {
                         style={styles.cancelBtn}
                         onClick={async () => {
 
-                            const confirmCancel = window.confirm(
-                            "ต้องการยกเลิกการจองใช่ไหม?"
-                            );
+                        const result = await Swal.fire({
+                          title: "ยืนยันการยกเลิกการจอง",
+                          text: "เครดิตจะถูกคืนเข้าระบบตามเงื่อนไข",
+                          icon: "warning",
 
-                            if (!confirmCancel) return;
+                          showCancelButton: true,
 
-                            try {
+                          confirmButtonText: "ยืนยันการยกเลิก",
+                          cancelButtonText: "ปิด",
+
+                          confirmButtonColor: "#ef4444",
+                          cancelButtonColor: "#6b7280",
+
+                          reverseButtons: true,
+                        });
+
+                        if (!result.isConfirmed) return;
+
+                        try {
 
                             const res = await fetch(
                                 `http://localhost:3000/api/bookings/${booking.id}/cancel`,
@@ -220,20 +233,34 @@ export default function MyBookings() {
 
                             const data = await res.json();
 
-                            if (!res.ok) {
+                              if (!res.ok) {
                                 toast.error(data.error);
                                 return;
-                            }
+                              }
 
-                            toast.success("ยกเลิกการจองสำเร็จ");
+                              await Swal.fire({
+                                title: "สำเร็จ",
+                                text: "ยกเลิกการจองเรียบร้อยแล้ว",
+                                icon: "success",
+                                confirmButtonColor: "#22c55e",
+                              });
 
-                            window.location.reload();
+                              setBookings(prev =>
+                                prev.filter(item => item.id !== booking.id)
+                              );
 
-                            } catch (err) {
+                              } catch (err) {
 
-                            console.error(err);
+                              console.error(err);
 
-                            }
+                              Swal.fire({
+                                title: "เกิดข้อผิดพลาด",
+                                text: "ไม่สามารถยกเลิกการจองได้",
+                                icon: "error",
+                                confirmButtonColor: "#ef4444",
+                              });
+
+                              }
 
                         }}
                         >

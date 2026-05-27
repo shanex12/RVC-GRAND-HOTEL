@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getBookingCalendar } from "../api/admin";
 import { useAuth } from "../context/AuthContext";
+import "../pages/AdminDashboard.css";
 
 export default function BookingCalendar() {
 
@@ -55,15 +56,15 @@ export default function BookingCalendar() {
 
     <div style={{ overflowX: "auto" }}>
 
-      <table style={styles.table}>
+      <table className="calendar-table">
 
         <thead>
 
           <tr>
-            <th style={styles.header}>ห้อง</th>
+            <th className="calendar-header">ห้อง</th>
 
             {days.map(day => (
-              <th key={day} style={styles.header}>
+              <th key={day} className="calendar-header">
                 {day}
               </th>
             ))}
@@ -77,7 +78,7 @@ export default function BookingCalendar() {
 
             <tr key={room}>
 
-              <td style={styles.roomName}>
+              <td className="calendar-roomName">
                 {room}
               </td>
 
@@ -89,8 +90,8 @@ export default function BookingCalendar() {
                 return (
                   <td
                     key={day}
+                    className="calendar-cell"
                     style={{
-                      ...styles.cell,
                       backgroundColor:
                         booked
                           ? "#ef4444"
@@ -115,32 +116,3 @@ export default function BookingCalendar() {
 
 }
 
-const styles = {
-
-  table: {
-    borderCollapse: "collapse",
-    width: "100%",
-  },
-
-  header: {
-    border: "1px solid #ddd",
-    padding: "8px",
-    background: "#111827",
-    color: "#fff",
-    fontSize: "13px",
-  },
-
-  roomName: {
-    border: "1px solid #ddd",
-    padding: "8px",
-    fontWeight: "700",
-    background: "#f3f4f6",
-  },
-
-  cell: {
-    width: "28px",
-    height: "28px",
-    border: "1px solid #fff",
-  }
-
-};

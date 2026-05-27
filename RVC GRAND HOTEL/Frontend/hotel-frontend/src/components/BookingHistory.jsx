@@ -1,25 +1,42 @@
 import { useEffect, useState } from "react";
 import { getBookingHistory } from "../api/admin";
 import { useAuth } from "../context/AuthContext";
+import "../pages/AdminDashboard.css";
+
 
 export default function BookingHistory() {
 
-  const [bookings, setBookings] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const ITEMS_PER_PAGE = 10;
+
+  const [page, setPage] = useState(1);
+
+  const [search, setSearch] = useState('');
+
   const { token } = useAuth();
+
+  const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
 
     loadHistory();
 
-  }, []);
+  }, [page, search]);
 
   const loadHistory = async () => {
 
     try {
 
-      const data = await getBookingHistory(token);
+      const data = await getBookingHistory(
+        token,
+        page,
+        10,
+        search
+      );
 
-      setBookings(data);
+      setBookings(data.data);
+      setTotalPages(data.totalPages);
 
     } catch (err) {
 
@@ -44,36 +61,60 @@ export default function BookingHistory() {
     );
   };
 
-  const formatDateTime = (dateString) => {
+const formatDateTime = (dateString, type) => {
 
-    if (!dateString) return '-';
+  if (!dateString) {
 
-    const date = new Date(dateString);
+    return type === "checkin"
+      ? "⏳ ยังไม่เช็คอิน"
+      : "⏳ ยังไม่เช็คเอาท์";
 
-    return date.toLocaleString('th-TH');
-  };
+  }
 
+  const date = new Date(dateString);
+
+  return date.toLocaleString('th-TH');
+
+};
+  
   if (bookings.length === 0) {
     return <p>ไม่มีประวัติการจอง</p>;
   }
 
   return (
 
-    <div style={styles.wrapper}>
-      <div style={styles.tableContainer}>
-        <table style={styles.table}>
+    <div className="admin-content">
+
+        <input
+          type="text"
+          placeholder="ค้นหาชื่อ เบอร์ ห้อง"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          style={{
+            padding: "10px",
+            marginBottom: "20px",
+            width: "300px",
+            borderRadius: "8px",
+            border: "1px solid #ccc",
+          }}
+        />
+      <div className="tableContainer">
+        <table className="booking-table">
 
         <thead>
 
-          <tr style={styles.headerRow}>
+          <tr>
 
-            <th style={styles.th}>ชื่อ</th>
-            <th style={styles.th}>เบอร์</th>
-            <th style={styles.th}>ห้อง</th>
-            <th style={styles.th}>วันที่จอง</th>
-            <th style={styles.th}>วัน/เวลาเช็คอิน</th>
-            <th style={styles.th}>วัน/เวลาเช็คเอาท์</th>
-            <th style={styles.th}>สถานะ</th>
+            <th>ชื่อ</th>
+            <th>เบอร์</th>
+            <th>ห้อง</th>
+            <th>วันที่จอง</th>
+            <th>วัน/เวลาเช็คอิน</th>
+            <th>วัน/เวลาเช็คเอาท์</th>
+            <th>สถานะ</th>
 
           </tr>
 
@@ -84,33 +125,24 @@ export default function BookingHistory() {
           {bookings.map((b) => (
         
 
-            <tr key={b.id} style={styles.bodyRow}>
+            <tr key={b.id} className="booking-table-row">
 
-                <td style={styles.td}>{b.guest_name}</td>
-                <td style={styles.td}>{b.guest_phone}</td>
-                <td style={styles.td}>{b.room_number || b.room_id}</td>
-                <td style={styles.td}>{formatDate(b.check_in)}</td>
-                <td style={styles.td}>{formatDateTime(b.checked_in_at)}</td>
-                <td style={styles.td}>{formatDateTime(b.checked_out_at)}</td>
-                <td style={styles.td}>
-                  <span style={{
-                    ...styles.badge,
-                    background:
-                    b.status === 'booked'
-                        ? 'linear-gradient(135deg,#f59e0b,#d97706)'
-                        : b.status === 'checked_in'
-                        ? 'linear-gradient(135deg,#22c55e,#16a34a)'
-                        : 'linear-gradient(135deg,#ef4444,#dc2626)',
-
-                    color: '#fff',
-
-                    boxShadow:
-                    b.status === 'booked'
-                        ? '0 6px 16px rgba(245,158,11,0.25)'
-                        : b.status === 'checked_in'
-                        ? '0 6px 16px rgba(34,197,94,0.25)'
-                        : '0 6px 16px rgba(239,68,68,0.25)',
-                  }}>
+                <td>{b.guest_name}</td>
+                <td>{b.guest_phone}</td>
+                <td>{b.room_number || b.room_id}</td>
+                <td>{formatDate(b.check_in)}</td>
+                <td>{formatDateTime(b.checked_in_at, "checkin")}</td>
+                <td>{formatDateTime(b.checked_out_at, "checkout")}</td>
+                <td>
+                    <span
+                      className={`status-badge ${
+                        b.status === "booked"
+                          ? "status-booked"
+                          : b.status === "checked_in"
+                          ? "status-checkedin"
+                          : "status-checkedout"
+                      }`}
+                    >
                     {
                       b.status === "booked"
                         ? "⏳ ยังไม่เข้าพัก"
@@ -127,51 +159,31 @@ export default function BookingHistory() {
         </tbody>
 
             </table>
+            <div className="pagination">
+
+                <button
+                className="page-button"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  ◀ ก่อนหน้า
+                </button>
+
+                <span className="page-text">
+                  หน้า {page} / {totalPages}
+                </span>
+
+                <button
+                className="page-button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  ถัดไป ▶
+                </button>
+
+              </div>
         </div>
     </div>
 
   );
 }
-
-const styles = {
-
-  wrapper: {
-    overflowX: "auto",
-  },
-    tableContainer: {
-    minWidth: "100%",
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: "14px",
-  },
-  headerRow: {
-    backgroundColor: "#667eea",
-    color: "#fff",
-  },
-
-  th: {
-    padding: "16px 12px",
-    textAlign: "left",
-    fontWeight: "600",
-    fontSize: "14px",
-  },
-
-  td: {
-    padding: "16px 12px",
-    borderBottom: "1px solid #e5e7eb",
-  },
-    bodyRow: {
-    transition: "background-color 0.2s ease",
-  },
-    badge: {
-    display: "inline-block",
-    padding: "6px 12px",
-    borderRadius: "20px",
-    fontSize: "13px",
-    fontWeight: "500",
-  },
-
-};

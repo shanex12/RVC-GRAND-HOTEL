@@ -103,21 +103,26 @@ export async function checkoutBooking(id, token) {
 
   return data;
 }
-export async function getBookingHistory(token) {
+export async function getBookingHistory(
+  token,
+  page = 1,
+  limit = 10,
+  search = ''
+) {
 
   const res = await fetch(
-    `${API_URL}/bookings/history`,
+    `${API_URL}/bookings/history?page=${page}&limit=${limit}&search=${search}`,
     {
       headers: {
-        Authorization: `Bearer ${token}`,
-      },
+        Authorization: `Bearer ${token}`
+      }
     }
   );
 
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.error || "โหลดประวัติไม่สำเร็จ");
+    throw new Error(data.error);
   }
 
   return data;

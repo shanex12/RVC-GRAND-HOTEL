@@ -10,6 +10,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import MyBookings from "./pages/MyBookings";
 import UserManagement from "./pages/UserManagement";
 import ErrorBoundary from "./components/ErrorBoundary";
+import TopupHistory from "./pages/TopupHistory";
 import {
   AdminRoute,
   ProtectedRoute,
@@ -57,6 +58,10 @@ export default function App() {
             </AppLayout>
           </ProtectedRoute>
         }
+      />
+      <Route
+        path="/topup-history"
+        element={<TopupHistory />}
       />
 
       <Route

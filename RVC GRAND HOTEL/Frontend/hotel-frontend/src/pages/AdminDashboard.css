@@ -344,3 +344,77 @@
   cursor: pointer;
   font-weight: 600;
 }
+.booking-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.booking-table th {
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  background-color: #667eea;
+  color: white;
+}
+
+.booking-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.booking-table tr {
+  transition: background-color 0.2s ease;
+}
+
+.booking-table tr:hover {
+  background-color: #f9fafb;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+}
+
+.status-booked {
+  background: linear-gradient(135deg,#f59e0b,#d97706);
+}
+
+.status-checkedin {
+  background: linear-gradient(135deg,#22c55e,#16a34a);
+}
+
+.status-checkedout {
+  background: linear-gradient(135deg,#ef4444,#dc2626);
+}
+
+.calendar-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.calendar-header {
+  border: 1px solid #ddd;
+  padding: 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 13px;
+}
+
+.calendar-roomName {
+  border: 1px solid #ddd;
+  padding: 8px;
+  font-weight: 700;
+  background: #f3f4f6;
+}
+
+.calendar-cell {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #fff;
+}
