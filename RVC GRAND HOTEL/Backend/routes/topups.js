@@ -279,5 +279,34 @@ router.post(
   }
 
 });
+// ===== GET MY TOPUP HISTORY =====
+router.get("/my", verifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT
+        id,
+        amount,
+        status,
+        created_at
+      FROM topups
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      `,
+      [req.user.id]
+    );
+
+    res.json(rows);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "โหลดประวัติเติมเครดิตไม่สำเร็จ",
+    });
+
+  }
+});
 
 module.exports = router;

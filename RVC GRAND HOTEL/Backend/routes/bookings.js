@@ -237,6 +237,38 @@ router.get(
   }
 );
 
+// ===== GET BOOKING Customer =====
+router.get(
+  "/customer-active",
+  verifyToken,
+  async (req, res) => {
+    try {
+
+      const [rows] = await db.query(`
+        SELECT
+          room_id,
+          user_id,
+          check_in,
+          check_out,
+          status
+        FROM bookings
+        WHERE status IN ('booked','checked_in')
+      `);
+
+      res.json(rows);
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        error: "Database error"
+      });
+
+    }
+  }
+);
+
 // ===== CHECKIN =====
 router.put(
   '/:id/checkin',
@@ -363,34 +395,83 @@ router.get(
   verifyToken,
   allowRoles('admin', 'staff'),
   async (req, res) => {
-  try {
 
-    const [rows] = await db.query(`
-      SELECT 
-        b.*,
-        r.name AS room_name,
-        r.room_type
-      FROM bookings b
-      LEFT JOIN rooms r
-      ON b.room_id = r.id
-      ORDER BY b.id DESC
-    `);
+    try {
 
-    res.json(rows);
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = req.query.search || '';
 
-  } catch (err) {
+      const offset = (page - 1) * limit;
 
-    console.error(err);
+      const keyword = `%${search}%`;
 
-    res.status(500).json({
-      error: 'โหลดประวัติไม่สำเร็จ'
-    });
+      const [rows] = await db.query(
+        `
+        SELECT 
+          b.*,
+          r.name AS room_number,
+          r.room_type
+        FROM bookings b
+        LEFT JOIN rooms r
+        ON b.room_id = r.id
+        WHERE
+          b.guest_name LIKE ?
+          OR b.guest_phone LIKE ?
+          OR r.name LIKE ?
+        ORDER BY b.id DESC
+        LIMIT ?
+        OFFSET ?
+        `,
+        [
+          keyword,
+          keyword,
+          keyword,
+          limit,
+          offset
+        ]
+      );
+
+      const [countRows] = await db.query(
+        `
+        SELECT COUNT(*) AS total
+        FROM bookings b
+        LEFT JOIN rooms r
+        ON b.room_id = r.id
+        WHERE
+          b.guest_name LIKE ?
+          OR b.guest_phone LIKE ?
+          OR r.name LIKE ?
+        `,
+        [
+          keyword,
+          keyword,
+          keyword
+        ]
+      );
+
+      const total = countRows[0].total;
+
+      res.json({
+        data: rows,
+        totalPages: Math.ceil(total / limit)
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        error: 'โหลดประวัติไม่สำเร็จ'
+      });
+
+    }
 
   }
-});
+);
 /*===== DASHBOARD STATS ===== */
 router.get(
-  '/dashboard-stats',
+  '/dashboard/stats',
   verifyToken,
   allowRoles('admin'),
   async (req, res) => {

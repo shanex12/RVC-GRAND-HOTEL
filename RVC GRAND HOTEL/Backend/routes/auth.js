@@ -5,7 +5,7 @@ const crypto = require('crypto');
 
 
 const router = express.Router();
-const JWT_SECRET = 'rvc_hotel_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Helper: Hash password
 function hashPassword(password) {
