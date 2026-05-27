@@ -70,6 +70,32 @@ router.post("/", verifyToken, async (req, res) => {
       });
     }
 
+    // ===== CHECK USER OVERLAP =====
+
+    const [userOverlap] = await db.query(
+      `
+      SELECT id
+      FROM bookings
+      WHERE user_id = ?
+      AND status IN ('booked', 'checked_in')
+      AND (
+        check_in < ?
+        AND check_out > ?
+      )
+      `,
+      [
+        req.user.id,
+        checkOutDateTime,
+        checkInDateTime
+      ]
+    );
+
+    if (userOverlap.length > 0) {
+      return res.status(400).json({
+        error: 'คุณมีการจองช่วงเวลานี้อยู่แล้ว'
+      });
+    }
+
     // ===== CALCULATE PRICE =====
 
     const roomPrice = Number(
@@ -144,57 +170,66 @@ if (checkInDate < today) {
 
     }
 
-    // ===== CUT CREDIT =====
+// ===== START TRANSACTION =====
+const connection = await db.getConnection();
 
-    await db.query(
-      `
-      UPDATE users
-      SET credit = credit - ?
-      WHERE id = ?
-      `,
-      [
-        totalAmount,
-        req.user.id
-      ]
-    );
+try {
+
+  await connection.beginTransaction();
+
+  // ===== CUT CREDIT =====
+  await connection.query(
+    "UPDATE users SET credit = credit - ? WHERE id = ?",
+    [totalAmount, req.user.id]
+  );
 
     // ===== CREATE BOOKING =====
-
-    const [result] = await db.query(
-      
-      `
-      INSERT INTO bookings
+    const [result] = await connection.query(
+      `INSERT INTO bookings
       (
-        user_id,
         guest_name,
         guest_phone,
         room_id,
+        user_id,
         check_in,
         check_out,
-        status,
-        total_price
-        
+        total_price,
+        status
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        req.user.id,
         guest_name,
         guest_phone,
         room_id,
-        checkInDateTime,
-        checkOutDateTime,
-        'booked',
-        totalAmount
+        req.user.id,
+        check_in,
+        check_out,
+        totalAmount,
+        "booked",
       ]
     );
 
-    // ===== UPDATE ROOM =====
+    await connection.commit();
 
-    res.json({
-      success: true,
-      id: result.insertId
+    res.status(201).json({
+      message: "Booking successful",
+      id: result.insertId,
     });
+
+  } catch (err) {
+
+    await connection.rollback();
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Booking failed",
+    });
+
+  } finally {
+
+    connection.release();
+  }
 
   } catch (err) {
 
