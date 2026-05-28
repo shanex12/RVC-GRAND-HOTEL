@@ -9,7 +9,18 @@ const {
 // GET /api/rooms
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM rooms');
+    const [rows] = await db.query(`
+    SELECT
+      r.*,
+      EXISTS(
+        SELECT 1
+        FROM bookings b
+        WHERE b.room_id = r.id
+        AND b.status IN ('booked', 'checked_in')
+      ) AS has_booking
+
+    FROM rooms r
+    `);
     res.json(rows || []);
   } catch (err) {
     console.error('Error fetching rooms:', err.message);
@@ -23,10 +34,10 @@ router.post(
   verifyToken,
   allowRoles('admin'),
   async (req, res) => {
-  const { name, room_type, capacity, price } = req.body;
+  const { name, room_type, capacity, price, status } = req.body;
 
   // ตรวจสอบข้อมูล
-  if (!name || !room_type || !capacity || !price) {
+  if (!name || !room_type || !capacity || !price || !status) {
     return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบ' });
   }
 
@@ -40,7 +51,7 @@ router.post(
     // สร้างห้องใหม่
     const result = await db.query(
       'INSERT INTO rooms (name, room_type, capacity, price, status) VALUES (?, ?, ?, ?, ?)',
-      [name, room_type, capacity, price, 'available']
+      [name, room_type, capacity, price,status]
     );
 
     console.log('✅ Room created:', result[0].insertId);
@@ -58,9 +69,15 @@ router.put(
   allowRoles('admin'),
   async (req, res) => {
   const id = req.params.id;
-  const { name, room_type, capacity, price } = req.body;
+  const {
+  name,
+  room_type,
+  capacity,
+  price,
+  status
+} = req.body;
 
-  if (!name || !room_type || !capacity || !price) {
+  if (!name || !room_type || !capacity || !price || !status) {
     return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบ' });
   }
 
@@ -79,8 +96,24 @@ router.put(
 
     // แก้ไขห้อง
     await db.query(
-      'UPDATE rooms SET name = ?, room_type = ?, capacity = ?, price = ? WHERE id = ?',
-      [name, room_type, capacity, price, id]
+      `
+      UPDATE rooms
+      SET
+        name = ?,
+        room_type = ?,
+        capacity = ?,
+        price = ?,
+        status = ?
+      WHERE id = ?
+      `,
+      [
+        name,
+        room_type,
+        capacity,
+        price,
+        status,
+        id
+      ]
     );
 
     console.log('✅ Room updated:', id);
@@ -132,12 +165,13 @@ router.get("/available", async (req, res) => {
 
   try {
 
-    // ถ้ายังไม่เลือกวัน → ส่งทุกห้อง
+    // ถ้ายังไม่เลือกวัน → ส่งเฉพาะห้องที่เปิดใช้งาน
     if (!check_in || !check_out) {
 
       const [rooms] = await db.query(`
         SELECT *
         FROM rooms
+        WHERE status = 'available'
         ORDER BY id DESC
       `);
 
