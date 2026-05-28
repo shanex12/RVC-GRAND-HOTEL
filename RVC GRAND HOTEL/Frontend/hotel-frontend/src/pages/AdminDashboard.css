@@ -418,3 +418,8 @@
   height: 28px;
   border: 1px solid #fff;
 }
+.status-cancelled {
+  background: #fee2e2;
+  color: #dc2626;
+}
+

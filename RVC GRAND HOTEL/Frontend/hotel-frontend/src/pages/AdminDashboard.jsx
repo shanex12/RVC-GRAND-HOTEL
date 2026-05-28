@@ -480,13 +480,7 @@ const loadTopups = async () => {
         <div className="tabs">
           <button
             onClick={() => setActiveTab('bookings')}
-            style={styles.tabButton(activeTab === 'bookings')}
-            onMouseOver={(e) => {
-              if (activeTab !== 'bookings') e.target.style.backgroundColor = '#f0f0f0';
-            }}
-            onMouseOut={(e) => {
-              if (activeTab !== 'bookings') e.target.style.backgroundColor = '#fff';
-            }}
+            className={`tab-button ${activeTab === "bookings" ? "active-tab" : ""}`}
           >
             📋 รายการจอง
           </button>

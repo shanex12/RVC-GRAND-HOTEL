@@ -5,13 +5,16 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
   const [editData, setEditData] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const handleEditClick = (room) => {
-    setEditingId(room.id);
-    setEditData({
+    const handleEditClick = (room) => {
+
+      setEditingId(room.id);
+
+      setEditData({
       name: room.name,
       room_type: room.room_type,
       capacity: room.capacity,
       price: room.price,
+      status: room.status,
     });
   };
 
@@ -32,12 +35,14 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
           name: editData.name,
           room_type: editData.room_type,
           capacity: parseInt(editData.capacity),
           price: parseFloat(editData.price),
+          status: editData.status,
         }),
       });
 
@@ -65,9 +70,12 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
 
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/rooms/${id}`, {
-        method: 'DELETE',
-      });
+    const res = await fetch(`http://localhost:3000/api/rooms/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
 
       const data = await res.json();
 
@@ -151,7 +159,23 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
                         style={styles.inputField}
                       />
                     </td>
-                    <td style={styles.td}>{room.status}</td>
+                    <td style={styles.td}>
+                      <select
+                        value={editData.status}
+                        onChange={(e) =>
+                          setEditData({
+                            ...editData,
+                            status: e.target.value,
+                          })
+                        }
+                        style={styles.inputField}
+                      >
+                        <option value="available">ว่าง</option>
+                        <option value="occupied">มีผู้เข้าพัก</option>
+                        <option value="cleaning">กำลังทำความสะอาด</option>
+                        <option value="maintenance">ปิดปรับปรุง</option>
+                      </select>
+                    </td>
                     <td style={styles.td}>
                       <div style={styles.actionGroup}>
                         <button
@@ -183,10 +207,33 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
                     <td style={styles.td}>
                       <span style={{
                         ...styles.badge,
-                        backgroundColor: room.status === 'available' ? '#d1fae5' : '#fee2e2',
-                        color: room.status === 'available' ? '#065f46' : '#991b1b',
+                        backgroundColor:
+                          room.status === "available"
+                            ? "#d1fae5"
+                            : room.status === "occupied"
+                            ? "#fee2e2"
+                            : room.status === "cleaning"
+                            ? "#fef3c7"
+                            : "#e0e7ff",
+
+                        color:
+                          room.status === "available"
+                            ? "#065f46"
+                            : room.status === "occupied"
+                            ? "#991b1b"
+                            : room.status === "cleaning"
+                            ? "#92400e"
+                            : "#3730a3",
                       }}>
-                        {room.status === 'available' ? '✓ ว่าง' : '✗ จองแล้ว'}
+                        {
+                          room.status === "available"
+                            ? "✓ ว่าง"
+                            : room.status === "occupied"
+                            ? "🛏️ มีผู้เข้าพัก"
+                            : room.status === "cleaning"
+                            ? "🧹 ทำความสะอาด"
+                            : "🔧 ปิดปรับปรุง"
+                        }
                       </span>
                     </td>
                     <td style={styles.td}>

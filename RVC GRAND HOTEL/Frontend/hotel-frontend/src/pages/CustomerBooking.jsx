@@ -47,7 +47,7 @@ export default function CustomerBooking() {
 
   useEffect(() => {
     loadRooms();
-  }, []);
+}, [searchCheckIn, searchCheckOut]);
         useEffect(() => {
         let timer;
 
@@ -120,20 +120,26 @@ export default function CustomerBooking() {
     const capacityMatch =
       !searchGuests || Number(room.capacity) >= Number(searchGuests);
 
-      const availableMatch = !checkRoomConflict(room.id);
-  
+    const availableMatch =
+      !checkRoomConflict(room.id) &&
+      room.status === "available";
+
     return (
-    matchesSearch &&
-    matchesCategory(room) &&
-    capacityMatch 
-  );
+      matchesSearch &&
+      matchesCategory(room) &&
+      capacityMatch &&
+      availableMatch
+    );
   });
 
 const loadRooms = async () => {
 
   try {
 
-    const roomData = await getRooms();
+    const roomData = await getRooms(
+      searchCheckIn,
+      searchCheckOut
+    );
 
     const bookingRes = await fetch(
       "http://localhost:3000/api/bookings/customer-active",
