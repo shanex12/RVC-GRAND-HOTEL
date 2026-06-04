@@ -61,29 +61,20 @@ export default function BookingHistory() {
     );
   };
 
-  const formatDateTime = (
-    dateString,
-    type,
-    status
-  ) => {
+const formatDateTime = (dateString, type, status) => {
+  if (status === 'cancelled') {
+    return '❌ ยกเลิกแล้ว';
+  }
 
-    if (status === "cancelled") {
-      return "❌ ยกเลิกแล้ว";
-    }
+  if (!dateString) {
+    return type === "checkin"
+      ? "⏳ ยังไม่เช็คอิน"
+      : "⏳ ยังไม่เช็คเอาท์";
+  }
 
-    if (!dateString) {
-
-      return type === "checkin"
-        ? "⏳ ยังไม่เช็คอิน"
-        : "⏳ ยังไม่เช็คเอาท์";
-
-    }
-
-    const date = new Date(dateString);
-
-    return date.toLocaleString("th-TH");
-
-  };
+  const date = new Date(dateString);
+  return date.toLocaleString('th-TH');
+};
   
   if (bookings.length === 0) {
     return <p>ไม่มีประวัติการจอง</p>;
@@ -143,24 +134,28 @@ export default function BookingHistory() {
                 <td>{formatDateTime(b.checked_out_at, "checkout", b.status)}</td>
                 <td>
                     <span
-                    className={`status-badge ${
-                      b.status === "cancelled"
-                        ? "status-cancelled"
-                        : b.status === "booked"
-                        ? "status-booked"
-                        : b.status === "checked_in"
-                        ? "status-checkedin"
-                        : "status-checkedout"
-                    }`}
+                      className={`status-badge ${
+                        b.status === "booked"
+                          ? "status-booked"
+                          : b.status === "checked_in"
+                          ? "status-checkedin"
+                          : b.status === "checked_out"
+                          ? "status-checkedout"
+                          : b.status === "cancelled"
+                          ? "status-cancelled"
+                          : ""
+                      }`}
                     >
                     {
-                      b.status === "cancelled"
-                        ? "❌ ยกเลิกแล้ว"
-                        : b.status === "booked"
+                      b.status === "booked"
                         ? "⏳ ยังไม่เข้าพัก"
                         : b.status === "checked_in"
-                        ? "✅ เช็คอินแล้ว"
-                        : "✔ เช็คเอาท์แล้ว"
+                        ? "✅ เข็คอินแล้ว"
+                        : b.status === "checked_out"
+                        ? "✔ เช็คเอาท์แล้ว"
+                        : b.status === "cancelled"
+                        ? "❌ ยกเลิกแล้ว"
+                        : b.status
                     }
                   </span>
                 </td>

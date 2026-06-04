@@ -480,7 +480,13 @@ const loadTopups = async () => {
         <div className="tabs">
           <button
             onClick={() => setActiveTab('bookings')}
-            className={`tab-button ${activeTab === "bookings" ? "active-tab" : ""}`}
+            style={styles.tabButton(activeTab === 'bookings')}
+            onMouseOver={(e) => {
+              if (activeTab !== 'bookings') e.target.style.backgroundColor = '#f0f0f0';
+            }}
+            onMouseOut={(e) => {
+              if (activeTab !== 'bookings') e.target.style.backgroundColor = '#fff';
+            }}
           >
             📋 รายการจอง
           </button>
@@ -567,6 +573,7 @@ const loadTopups = async () => {
                 <h2 className="section-title">รายชื่อห้องพัก</h2>
                 <RoomList 
                   rooms={rooms} 
+                  token={token}
                   onRoomUpdated={() => loadRooms()} 
                   onRoomDeleted={() => { loadRooms(); loadBookings(); }}
                 />

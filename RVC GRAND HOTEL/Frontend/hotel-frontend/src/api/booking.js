@@ -24,25 +24,9 @@ export async function checkOut(id) {
     method: 'PUT'
   });
 }
-
-export const getRooms = async (checkIn, checkOut) => {
-
-  let url = `${API}/rooms/available`;
-
-  if (checkIn && checkOut) {
-
-    url += `?check_in=${checkIn}&check_out=${checkOut}`;
-
-  }
-
-  const res = await fetch(url);
-
-  if (!res.ok) {
-
-    throw new Error("โหลดห้องไม่สำเร็จ");
-
-  }
-
+export const getRooms = async () => {
+  const res = await fetch(`${API}/rooms`);
+  if (!res.ok) throw new Error("โหลดห้องไม่สำเร็จ");
   return await res.json();
 };
 

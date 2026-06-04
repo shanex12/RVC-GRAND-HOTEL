@@ -18,23 +18,26 @@ const myBooking = activeBookings.find((b) => {
   const bookingCheckOut = b.check_out.slice(0, 10);
 
   if (!searchCheckIn || !searchCheckOut) {
-
     const today = new Date().toISOString().split("T")[0];
-
-    return (
-      bookingCheckIn <= today &&
-      bookingCheckOut > today
-    );
+    return bookingCheckIn <= today && bookingCheckOut > today;
   }
 
-  return (
-    bookingCheckIn < searchCheckOut &&
-    bookingCheckOut > searchCheckIn
-  );
+  return bookingCheckIn < searchCheckOut && bookingCheckOut > searchCheckIn;
 });
 
-    const roomAvailable =
-    !checkRoomConflict(room.id);
+  const roomAvailable = room.status === 'available' && !checkRoomConflict(room.id);
+  const statusLabel = myBooking
+    ? '✅ คุณจองห้องนี้แล้ว'
+    : room.status === 'available'
+    ? '🟢 ว่าง'
+    : room.status === 'maintenance'
+    ? '🟠 ปิดปรับปรุง'
+    : room.status === 'cleaning'
+    ? '🟡 ทำความสะอาด'
+    : room.status === 'unavailable'
+    ? '🔴 ไม่พร้อมใช้งาน'
+    : '🔴 ไม่ว่าง';
+
   return (
     <div className="room-card">
 
@@ -63,10 +66,7 @@ const myBooking = activeBookings.find((b) => {
         </div>
 
         <p className="room-status">
-          สถานะ:
-          {roomAvailable
-            ? " 🟢 ว่าง"
-            : " 🔴 ไม่ว่าง"}
+          สถานะ: {statusLabel}
         </p>
 
         <p className="room-capacity">
@@ -84,21 +84,17 @@ const myBooking = activeBookings.find((b) => {
         </div>
 
         <button
-        className={
+          className={
             myBooking
-            ? "disabled-button"
-            : roomAvailable
-            ? "book-button"
-            : "disabled-button"
-        }
-        disabled={!!myBooking || !roomAvailable}
-        onClick={() =>
-            roomAvailable &&
-            !myBooking &&
-            handleSelectRoom(room)
-        }
+              ? "disabled-button"
+              : roomAvailable
+              ? "book-button"
+              : "disabled-button"
+          }
+          disabled={!!myBooking || !roomAvailable}
+          onClick={() => roomAvailable && !myBooking && handleSelectRoom(room)}
         >
-        {myBooking
+          {myBooking
             ? "✅ คุณจองห้องนี้แล้ว"
             : roomAvailable
             ? "💳 จองห้อง"

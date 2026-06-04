@@ -28,36 +28,30 @@ export default function MyBookings() {
   }, []);
 
   const getStatusColor = (status) => {
-
     switch(status) {
-
       case "booked":
         return "#f59e0b";
-
       case "checked_in":
         return "#10b981";
-
       case "checked_out":
         return "#6b7280";
-
+      case "cancelled":
+        return "#ef4444";
       default:
         return "#3b82f6";
     }
   };
 
   const getStatusText = (status) => {
-
     switch(status) {
-
       case "booked":
         return "จองแล้ว";
-
       case "checked_in":
         return "เข้าพักแล้ว";
-
       case "checked_out":
         return "เช็คเอาท์แล้ว";
-
+      case "cancelled":
+        return "ยกเลิกแล้ว";
       default:
         return status;
     }
@@ -155,41 +149,40 @@ export default function MyBookings() {
                         📅 Check-in:
                         {" "}
                         <strong style={styles.infoValue}>
-                        {new Date(booking.check_in).toLocaleDateString("th-TH")}
-                        
-                        {" "}
+                        {booking.status === "cancelled"
+                          ? "ยกเลิกแล้ว"
+                          : new Date(booking.check_in).toLocaleDateString("th-TH")}
+                        </strong>
                         {booking.status === "booked" && (
                             <span style={{
-                            color: "#f59e0b",
-                            fontWeight: "800",
-                            marginLeft: "100px"
+                              color: "#f59e0b",
+                              fontWeight: "800",
+                              marginLeft: "16px"
                             }}>
-                            (เช็คอินได้ตั้งแต่ 12:00 เป็นต้นไป)
+                            (เช็คอินได้ตั้งแต่ 12:00)
                             </span>
                         )}
-                        </strong>
                 </div>
 
                 <div style={styles.infoRow}>
                         📅 Check-out:
                         {" "}
                         <strong style={styles.infoValue}>
-                        {new Date(booking.check_out).toLocaleDateString("th-TH")}
-                        
-                        {" "}
+                        {booking.status === "cancelled"
+                          ? "ยกเลิกแล้ว"
+                          : new Date(booking.check_out).toLocaleDateString("th-TH")}
+                        </strong>
                         {(booking.status === "checked_in" ||
                             booking.status === "checked_out") && (
                             <span style={{
-                            color: "#ef4444",
-                            fontWeight: "800",
-                            marginLeft: "190px"
+                              color: "#ef4444",
+                              fontWeight: "800",
+                              marginLeft: "16px"
                             }}>
                             (เช็คเอาท์ก่อน 12:00)
                             </span>
                         )}
-                        </strong>
                 </div>
-
                 <div style={styles.priceBox}>
                   💰 {booking.total_price} บาท
                 </div>
@@ -246,7 +239,11 @@ export default function MyBookings() {
                               });
 
                               setBookings(prev =>
-                                prev.filter(item => item.id !== booking.id)
+                                prev.map((item) =>
+                                  item.id === booking.id
+                                    ? { ...item, status: 'cancelled' }
+                                    : item
+                                )
                               );
 
                               } catch (err) {

@@ -47,7 +47,7 @@ export default function CustomerBooking() {
 
   useEffect(() => {
     loadRooms();
-}, [searchCheckIn, searchCheckOut]);
+  }, []);
         useEffect(() => {
         let timer;
 
@@ -105,6 +105,23 @@ export default function CustomerBooking() {
     });
   };
 
+  const isMyRoomBooking = (room) => {
+    return (activeBookings || []).some((booking) => {
+      if (booking.room_id !== room.id) return false;
+      if (booking.user_id !== user?.id) return false;
+
+      const bookingCheckIn = booking.check_in?.slice(0, 10) || booking.check_in;
+      const bookingCheckOut = booking.check_out?.slice(0, 10) || booking.check_out;
+
+      if (!searchCheckIn || !searchCheckOut) {
+        const today = new Date().toISOString().split("T")[0];
+        return bookingCheckIn <= today && bookingCheckOut > today;
+      }
+
+      return bookingCheckIn < searchCheckOut && bookingCheckOut > searchCheckIn;
+    });
+  };
+
   const filteredRooms = rooms.filter((room) => {
     const q = searchQuery.trim().toLowerCase();
     const typeText = ((room.room_type || room.type || "") + "").toLowerCase();
@@ -113,33 +130,23 @@ export default function CustomerBooking() {
       !q ||
       nameText.includes(q) ||
       typeText.includes(q) ||
-      q.includes("twin") && typeText.includes("twin") ||
-      q.includes("double") && typeText.includes("double") ||
-      q.includes("เตียงเดี่ยว") && typeText.includes("เตียงเดี่ยว") ||
-      q.includes("เตียงคู่") && typeText.includes("เตียงคู่");
-    const capacityMatch =
-      !searchGuests || Number(room.capacity) >= Number(searchGuests);
+      (q.includes("twin") && typeText.includes("twin")) ||
+      (q.includes("double") && typeText.includes("double")) ||
+      (q.includes("เตียงเดี่ยว") && typeText.includes("เตียงเดี่ยว")) ||
+      (q.includes("เตียงคู่") && typeText.includes("เตียงคู่"));
+    const capacityMatch = !searchGuests || Number(room.capacity) >= Number(searchGuests);
+    const isMyBooking = isMyRoomBooking(room);
+    const availableMatch = !checkRoomConflict(room.id);
+    const showRoom = isMyBooking || (room.status === 'available' && availableMatch);
 
-    const availableMatch =
-      !checkRoomConflict(room.id) &&
-      room.status === "available";
-
-    return (
-      matchesSearch &&
-      matchesCategory(room) &&
-      capacityMatch &&
-      availableMatch
-    );
+    return matchesSearch && matchesCategory(room) && capacityMatch && showRoom;
   });
 
 const loadRooms = async () => {
 
   try {
 
-    const roomData = await getRooms(
-      searchCheckIn,
-      searchCheckOut
-    );
+    const roomData = await getRooms();
 
     const bookingRes = await fetch(
       "http://localhost:3000/api/bookings/customer-active",

@@ -1,15 +1,13 @@
 import { useState } from 'react';
 
-export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
+export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted, token }) {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [loading, setLoading] = useState(false);
 
-    const handleEditClick = (room) => {
-
-      setEditingId(room.id);
-
-      setEditData({
+  const handleEditClick = (room) => {
+    setEditingId(room.id);
+    setEditData({
       name: room.name,
       room_type: room.room_type,
       capacity: room.capacity,
@@ -31,12 +29,17 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
 
     setLoading(true);
     try {
+      const authToken = token || localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+
       const res = await fetch(`http://localhost:3000/api/rooms/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers,
         body: JSON.stringify({
           name: editData.name,
           room_type: editData.room_type,
@@ -70,12 +73,15 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
 
     setLoading(true);
     try {
-    const res = await fetch(`http://localhost:3000/api/rooms/${id}`, {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
+      const authToken = token || localStorage.getItem('token');
+      const headers = {};
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+      const res = await fetch(`http://localhost:3000/api/rooms/${id}`, {
+        method: 'DELETE',
+        headers,
+      });
 
       const data = await res.json();
 
@@ -162,18 +168,13 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
                     <td style={styles.td}>
                       <select
                         value={editData.status}
-                        onChange={(e) =>
-                          setEditData({
-                            ...editData,
-                            status: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setEditData({ ...editData, status: e.target.value })}
                         style={styles.inputField}
                       >
-                        <option value="available">ว่าง</option>
-                        <option value="occupied">มีผู้เข้าพัก</option>
-                        <option value="cleaning">กำลังทำความสะอาด</option>
-                        <option value="maintenance">ปิดปรับปรุง</option>
+                        <option value="available">available (ว่าง)</option>
+                        <option value="maintenance">maintenance (ปิดปรับปรุง)</option>
+                        <option value="cleaning">cleaning (ทำความสะอาด)</option>
+                        <option value="unavailable">unavailable (ไม่พร้อมใช้งาน)</option>
                       </select>
                     </td>
                     <td style={styles.td}>
@@ -205,36 +206,43 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted }) {
                     <td style={styles.td}>{room.capacity} คน</td>
                     <td style={styles.td}>฿{room.price}</td>
                     <td style={styles.td}>
-                      <span style={{
-                        ...styles.badge,
-                        backgroundColor:
-                          room.status === "available"
-                            ? "#d1fae5"
-                            : room.status === "occupied"
-                            ? "#fee2e2"
-                            : room.status === "cleaning"
-                            ? "#fef3c7"
-                            : "#e0e7ff",
-
-                        color:
-                          room.status === "available"
-                            ? "#065f46"
-                            : room.status === "occupied"
-                            ? "#991b1b"
-                            : room.status === "cleaning"
-                            ? "#92400e"
-                            : "#3730a3",
-                      }}>
-                        {
-                          room.status === "available"
-                            ? "✓ ว่าง"
-                            : room.status === "occupied"
-                            ? "🛏️ มีผู้เข้าพัก"
-                            : room.status === "cleaning"
-                            ? "🧹 ทำความสะอาด"
-                            : "🔧 ปิดปรับปรุง"
-                        }
-                      </span>
+                      {(() => {
+                        const displayStatus = room.current_status || room.status;
+                        const badgeStyles = {
+                          ...styles.badge,
+                          backgroundColor:
+                            displayStatus === 'available'
+                              ? '#d1fae5'
+                              : displayStatus === 'maintenance'
+                              ? '#fcd34d'
+                              : displayStatus === 'cleaning'
+                              ? '#fef3c7'
+                              : displayStatus === 'booked'
+                              ? '#fee2e2'
+                              : '#e5e7eb',
+                          color:
+                            displayStatus === 'available'
+                              ? '#065f46'
+                              : displayStatus === 'maintenance'
+                              ? '#92400e'
+                              : displayStatus === 'cleaning'
+                              ? '#92400e'
+                              : displayStatus === 'booked'
+                              ? '#991b1b'
+                              : '#111827',
+                        };
+                        const label =
+                          displayStatus === 'available'
+                            ? '✓ ว่าง'
+                            : displayStatus === 'maintenance'
+                            ? '🟠 ปิดปรับปรุง'
+                            : displayStatus === 'cleaning'
+                            ? '🟡 ทำความสะอาด'
+                            : displayStatus === 'booked'
+                            ? '✗ จองอยู่'
+                            : '✗ ไม่พร้อมใช้งาน';
+                        return <span style={badgeStyles}>{label}</span>;
+                      })()}
                     </td>
                     <td style={styles.td}>
                       <div style={styles.actionGroup}>

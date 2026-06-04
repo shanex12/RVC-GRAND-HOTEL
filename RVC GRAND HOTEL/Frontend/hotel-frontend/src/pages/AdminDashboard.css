@@ -393,6 +393,10 @@
   background: linear-gradient(135deg,#ef4444,#dc2626);
 }
 
+.status-cancelled {
+  background: linear-gradient(135deg,#ef4444,#b91c1c);
+}
+
 .calendar-table {
   border-collapse: collapse;
   width: 100%;
@@ -418,8 +422,3 @@
   height: 28px;
   border: 1px solid #fff;
 }
-.status-cancelled {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
