@@ -10,17 +10,22 @@ const {
 router.get('/', async (req, res) => {
   try {
     const [rows] = await db.query(`
-    SELECT
-      r.*,
-      EXISTS(
-        SELECT 1
-        FROM bookings b
-        WHERE b.room_id = r.id
-        AND b.status IN ('booked', 'checked_in')
-      ) AS has_booking
-
-    FROM rooms r
+      SELECT
+        r.*,
+        CASE
+          WHEN EXISTS(
+            SELECT 1 FROM bookings b
+            WHERE b.room_id = r.id
+              AND b.status IN ('booked', 'checked_in')
+              AND b.check_in <= NOW()
+              AND b.check_out > NOW()
+          ) THEN 'booked'
+          ELSE r.status
+        END AS current_status
+      FROM rooms r
+      ORDER BY r.id DESC
     `);
+
     res.json(rows || []);
   } catch (err) {
     console.error('Error fetching rooms:', err.message);
@@ -34,10 +39,10 @@ router.post(
   verifyToken,
   allowRoles('admin'),
   async (req, res) => {
-  const { name, room_type, capacity, price, status } = req.body;
+  const { name, room_type, capacity, price } = req.body;
 
   // ตรวจสอบข้อมูล
-  if (!name || !room_type || !capacity || !price || !status) {
+  if (!name || !room_type || !capacity || !price) {
     return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบ' });
   }
 
@@ -51,7 +56,7 @@ router.post(
     // สร้างห้องใหม่
     const result = await db.query(
       'INSERT INTO rooms (name, room_type, capacity, price, status) VALUES (?, ?, ?, ?, ?)',
-      [name, room_type, capacity, price,status]
+      [name, room_type, capacity, price, 'available']
     );
 
     console.log('✅ Room created:', result[0].insertId);
@@ -66,24 +71,18 @@ router.post(
 router.put(
   '/:id',
   verifyToken,
-  allowRoles('admin'),
+  allowRoles('admin', 'staff'),
   async (req, res) => {
   const id = req.params.id;
-  const {
-  name,
-  room_type,
-  capacity,
-  price,
-  status
-} = req.body;
+  const { name, room_type, capacity, price, status } = req.body;
 
-  if (!name || !room_type || !capacity || !price || !status) {
+  if (!name || !room_type || !capacity || !price) {
     return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบ' });
   }
 
   try {
     // ตรวจสอบว่ามีห้องนี้หรือไม่
-    const [rooms] = await db.query('SELECT id FROM rooms WHERE id = ?', [id]);
+    const [rooms] = await db.query('SELECT id, status FROM rooms WHERE id = ?', [id]);
     if (rooms.length === 0) {
       return res.status(404).json({ error: 'ห้องไม่พบ' });
     }
@@ -94,26 +93,13 @@ router.put(
       return res.status(400).json({ error: 'เลขห้องนี้ใช้งานแล้ว' });
     }
 
+    const validStatuses = ['available', 'maintenance', 'cleaning'];
+    const roomStatus = validStatuses.includes(status) ? status : rooms[0].status;
+
     // แก้ไขห้อง
     await db.query(
-      `
-      UPDATE rooms
-      SET
-        name = ?,
-        room_type = ?,
-        capacity = ?,
-        price = ?,
-        status = ?
-      WHERE id = ?
-      `,
-      [
-        name,
-        room_type,
-        capacity,
-        price,
-        status,
-        id
-      ]
+      'UPDATE rooms SET name = ?, room_type = ?, capacity = ?, price = ?, status = ? WHERE id = ?',
+      [name, room_type, capacity, price, roomStatus, id]
     );
 
     console.log('✅ Room updated:', id);
@@ -165,7 +151,7 @@ router.get("/available", async (req, res) => {
 
   try {
 
-    // ถ้ายังไม่เลือกวัน → ส่งเฉพาะห้องที่เปิดใช้งาน
+    // ถ้ายังไม่เลือกวัน → ส่งเฉพาะห้องที่พร้อมใช้งาน
     if (!check_in || !check_out) {
 
       const [rooms] = await db.query(`
@@ -178,12 +164,13 @@ router.get("/available", async (req, res) => {
       return res.json(rooms);
     }
 
-    // ห้องที่ยังว่าง
+    // ห้องที่ยังว่างและพร้อมใช้งาน
     const [rooms] = await db.query(
       `
       SELECT *
       FROM rooms
-      WHERE id NOT IN (
+      WHERE status = 'available'
+      AND id NOT IN (
 
         SELECT room_id
         FROM bookings

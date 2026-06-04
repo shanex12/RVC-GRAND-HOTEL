@@ -31,7 +31,7 @@ router.post("/", verifyToken, async (req, res) => {
     // ===== CHECK ROOM =====
 
     const [rooms] = await db.query(
-      'SELECT * FROM rooms WHERE id = ? ',
+      'SELECT * FROM rooms WHERE id = ?',
       [room_id]
     );
 
@@ -41,36 +41,16 @@ router.post("/", verifyToken, async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const checkInDate = new Date(check_in);
-    const checkOutDate = new Date(check_out);
-
-    if (checkOutDate <= checkInDate) {
-      return res.status(400).json({
-        error: 'วันเช็คเอาท์ต้องมากกว่าวันเช็คอิน'
-      });
-    }
-
-    if (checkInDate < today) {
-      return res.status(400).json({
-        error: 'ไม่สามารถจองย้อนหลังได้'
-      });
-    }
+    // ===== CHECK DATE CONFLICT =====
 
     const checkInDateTime = check_in + " 14:00:00";
     const checkOutDateTime = check_out + " 12:00:00";
 
-
-    // ===== CHECK USER OVERLAP =====
-
-    const [userOverlap] = await db.query(
+    const [conflicts] = await db.query(
       `
       SELECT id
       FROM bookings
-      WHERE user_id = ?
-      AND room_id = ?
+      WHERE room_id = ?
       AND status IN ('booked', 'checked_in')
       AND (
         check_in < ?
@@ -78,16 +58,15 @@ router.post("/", verifyToken, async (req, res) => {
       )
       `,
       [
-        req.user.id,
         room_id,
         checkOutDateTime,
         checkInDateTime
       ]
     );
 
-    if (userOverlap.length > 0) {
+    if (conflicts.length > 0) {
       return res.status(400).json({
-        error: 'คุณมีการจองช่วงเวลานี้อยู่แล้ว'
+        error: 'ห้องนี้ถูกจองแล้ว'
       });
     }
 
@@ -113,150 +92,109 @@ router.post("/", verifyToken, async (req, res) => {
     const totalAmount =
       roomPrice * nights;
 
+const today = new Date();
+today.setHours(0, 0, 0, 0);
 
-// ===== START TRANSACTION =====
-  const connection = await db.getConnection();
+const checkInDate = new Date(check_in);
+const checkOutDate = new Date(check_out);
 
-  try {
+if (checkOutDate <= checkInDate) {
+  return res.status(400).json({
+    error: 'วันเช็คเอาท์ต้องมากกว่าวันเช็คอิน'
+  });
+}
 
-  await connection.beginTransaction();
+if (checkInDate < today) {
+  return res.status(400).json({
+    error: 'ไม่สามารถจองย้อนหลังได้'
+  });
+}
 
-    // ===== CHECK CREDIT INSIDE TRANSACTION =====
+    // ===== CHECK CREDIT =====
 
-  const [users] = await connection.query(
-    `
-    SELECT credit
-    FROM users
-    WHERE id = ?
-    FOR UPDATE
-    `,
-    [req.user.id]
-  );
+    const [users] = await db.query(
+      `
+      SELECT credit
+      FROM users
+      WHERE id = ?
+      `,
+      [req.user.id]
+    );
 
-  if (!users || users.length === 0) {
+    console.log("REQ USER =", req.user);
+    console.log("USERS =", users);
 
-    await connection.rollback();
+    if (!users || users.length === 0) {
 
-    return res.status(404).json({
-      error: "ไม่พบ user นี้ในฐานข้อมูล"
-    });
+      return res.status(404).json({
+        error: "ไม่พบ user นี้ในฐานข้อมูล"
+      });
 
-  }
+    }
 
-  const userCredit = Number(
-    users[0].credit || 0
-  );
+    const userCredit = Number(
+      users[0].credit || 0
+    );
 
-  if (userCredit < totalAmount) {
+    if (userCredit < totalAmount) {
 
-    await connection.rollback();
+      return res.status(400).json({
+        error: 'เครดิตไม่เพียงพอกรุณาเติมเครดิต'
+      });
 
-    return res.status(400).json({
-      error: 'เครดิตไม่เพียงพอกรุณาเติมเครดิต'
-    });
+    }
 
-  }
-    // ===== CHECK DATE CONFLICT INSIDE TRANSACTION =====
+    // ===== CUT CREDIT =====
 
-  const [conflicts] = await connection.query(
-    `
-    SELECT id
-    FROM bookings
-    WHERE room_id = ?
-    AND status IN ('booked', 'checked_in')
-    AND (
-      check_in < ?
-      AND check_out > ?
-    )
-    FOR UPDATE
-    `,
-    [
-      room_id,
-      checkOutDateTime,
-      checkInDateTime
-    ]
-  );
-
-  if (conflicts.length > 0) {
-
-    await connection.rollback();
-
-    return res.status(400).json({
-      error: 'ห้องนี้ถูกจองแล้ว'
-    });
-
-  }
-
-  // ===== CUT CREDIT =====
-  await connection.query(
-    "UPDATE users SET credit = credit - ? WHERE id = ?",
-    [totalAmount, req.user.id]
-  );
-
-    // ===== CREATE BOOKING =====
-    const [result] = await connection.query(
-      
-      `INSERT INTO bookings
-      (
-        guest_name,
-        guest_phone,
-        room_id,
-        user_id,
-        check_in,
-        check_out,
-        total_price,
-        status
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    await db.query(
+      `
+      UPDATE users
+      SET credit = credit - ?
+      WHERE id = ?
+      `,
       [
-        guest_name,
-        guest_phone,
-        room_id,
-        req.user.id,
-        check_in,
-        check_out,
         totalAmount,
-        "booked",
+        req.user.id
       ]
     );
 
-    await connection.query(
+    // ===== CREATE BOOKING =====
+
+    const [result] = await db.query(
+      
       `
-      UPDATE rooms
-      SET status = 'occupied'
-      WHERE id = ?
+      INSERT INTO bookings
+      (
+        user_id,
+        guest_name,
+        guest_phone,
+        room_id,
+        check_in,
+        check_out,
+        status,
+        total_price
+        
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [room_id]
+      [
+        req.user.id,
+        guest_name,
+        guest_phone,
+        room_id,
+        checkInDateTime,
+        checkOutDateTime,
+        'booked',
+        totalAmount
+      ]
     );
 
-    await connection.commit(
-        `
-      UPDATE rooms
-      SET status = 'occupied'
-      WHERE id = ?
-      `,
-      [room_id]
-    );
+    // ===== UPDATE ROOM =====
 
-    res.status(201).json({
-      message: "Booking successful",
-      id: result.insertId,
+    res.json({
+      success: true,
+      id: result.insertId
     });
-
-  } catch (err) {
-
-    await connection.rollback();
-
-    console.error(err);
-
-    res.status(500).json({
-      error: "Booking failed",
-    });
-
-  } finally {
-
-    connection.release();
-  }
 
   } catch (err) {
 
@@ -429,18 +367,6 @@ router.put(
         `,
         ['checked_out', id]
       );
-        await db.query(
-          `
-          UPDATE rooms
-          SET status = 'available'
-          WHERE id = (
-            SELECT room_id
-            FROM bookings
-            WHERE id = ?
-          )
-          `,
-          [id]
-        );
 
       await logActivity(
         req.user.username || req.user.role,
@@ -617,19 +543,12 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
       });
     }
 
-    const now = new Date();
-
-    const checkInTime = new Date(
-      booking.check_in + " 14:00:00"
-    );
-
-    const diffMs = checkInTime - now;
-
-    const diffHours = diffMs / (1000 * 60 * 60);
-
-    if (diffHours < 0.5) {
+    if (
+      booking.status === "checked_in" ||
+      booking.status === "checked_out"
+    ) {
       return res.status(400).json({
-        error: "ไม่สามารถยกเลิกก่อนเช็คอินน้อยกว่า 30 นาที"
+        error: "ไม่สามารถยกเลิกได้"
       });
     }
 
@@ -658,7 +577,11 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: "ยกเลิกการจองสำเร็จ"
+      message: "ยกเลิกการจองสำเร็จ",
+      booking: {
+        ...booking,
+        status: 'cancelled'
+      }
     });
 
   } catch (err) {
