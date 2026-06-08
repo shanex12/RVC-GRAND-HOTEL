@@ -121,7 +121,6 @@ const roomData = Object.entries(roomTypes).map(
 
   const loadBookings = async () => {
     try {
-      const token = localStorage.getItem("token");
       const data = await getActiveBookings(token);
       setBookings(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -132,7 +131,6 @@ const roomData = Object.entries(roomTypes).map(
 
   const loadRooms = async () => {
     try {
-      const token = localStorage.getItem("token");
       const data = await getAllRooms(token);
       setRooms(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -341,7 +339,6 @@ const handleCheckout = async (id) => {
 const loadTopups = async () => {
 
   try {
-      const token = localStorage.getItem("token");
       if (!token) {
         setTopups([]);
         return;
@@ -373,7 +370,6 @@ const loadTopups = async () => {
   const loadLogs = async () => {
 
   try {
-      const token = localStorage.getItem("token");
       if (!token) {
         setLogs([]);
         return;
@@ -402,7 +398,6 @@ const loadTopups = async () => {
   const loadDashboardStats = async () => {
 
   try {
-    const token = localStorage.getItem("token");
     const data = await getDashboardStats(token);
 
     setStats(data);

@@ -31,7 +31,18 @@ export default function BookingCalendar() {
 
   };
 
-  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const currentDate = new Date();
+
+  const daysInMonth = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+    0
+  ).getDate();
+
+  const days = Array.from(
+    { length: daysInMonth },
+    (_, i) => i + 1
+  );
 
   const rooms = [...new Set(
     bookings.map(b => b.room_name)
@@ -43,10 +54,22 @@ export default function BookingCalendar() {
 
       if (b.room_name !== roomName) return false;
 
-      const checkIn = new Date(b.check_in).getDate();
-      const checkOut = new Date(b.check_out).getDate();
+      const checkIn = new Date(b.check_in);
+      checkIn.setHours(0, 0, 0, 0);
 
-      return day >= checkIn && day < checkOut;
+      const checkOut = new Date(b.check_out);
+      checkOut.setHours(0, 0, 0, 0);
+
+      const cellDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        day
+      );
+
+      cellDate.setHours(0, 0, 0, 0);
+
+      return cellDate >= checkIn &&
+             cellDate < checkOut;
 
     });
 
@@ -55,6 +78,13 @@ export default function BookingCalendar() {
   return (
 
     <div style={{ overflowX: "auto" }}>
+
+    <h3 style={{ marginBottom: "10px" }}>
+      เดือน {currentDate.toLocaleString("th-TH", {
+        month: "long",
+        year: "numeric"
+      })}
+    </h3>
 
       <table className="calendar-table">
 
