@@ -422,3 +422,32 @@
   height: 28px;
   border: 1px solid #fff;
 }
+/* ===== Status Badge ===== */
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-booked {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-checkin {
+  background: #dbeafe;
+  color: #1e40af;
+}

@@ -1,9 +1,21 @@
 export default function StatCard({ title, value, icon = "📊", color = "#667eea" }) {
   return (
-    <div style={{
-      ...styles.card,
-      borderLeft: `4px solid ${color}`,
-    }}>
+<div
+  style={{
+    ...styles.card,
+    borderLeft: `4px solid ${color}`,
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "translateY(-4px)";
+    e.currentTarget.style.boxShadow =
+      "0 12px 28px rgba(0,0,0,0.15)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow =
+      "0 4px 15px rgba(0,0,0,0.08)";
+  }}
+>
       <div style={styles.header}>
         <span style={{ fontSize: "28px" }}>{icon}</span>
         <h4 style={styles.title}>{title}</h4>

@@ -1,22 +1,19 @@
 .room-card {
-  background: #fff;
-  border-radius: 22px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
-  transition: all 0.35s ease;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+.room-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.15);
 }
 .rooms-grid {
     display: grid;
     grid-Template-Columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 30px;
     margin-Bottom: 40px;
-}
-.room-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  border-color: #d4af37;
 }
 
 .room-image {

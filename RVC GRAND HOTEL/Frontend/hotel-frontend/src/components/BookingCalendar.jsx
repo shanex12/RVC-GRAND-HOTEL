@@ -69,7 +69,7 @@ export default function BookingCalendar() {
       cellDate.setHours(0, 0, 0, 0);
 
       return cellDate >= checkIn &&
-             cellDate < checkOut;
+        cellDate < checkOut;
 
     });
 
@@ -79,12 +79,24 @@ export default function BookingCalendar() {
 
     <div style={{ overflowX: "auto" }}>
 
-    <h3 style={{ marginBottom: "10px" }}>
-      เดือน {currentDate.toLocaleString("th-TH", {
-        month: "long",
-        year: "numeric"
-      })}
-    </h3>
+      <h3 style={{ marginBottom: "10px" }}>
+        เดือน {currentDate.toLocaleString("th-TH", {
+          month: "long",
+          year: "numeric"
+        })}
+      </h3>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "16px",
+          marginBottom: "12px",
+          fontWeight: "600",
+        }}
+      >
+        <span>🟩 ว่าง</span>
+        <span>🟥 ถูกจอง</span>
+      </div>
 
       <table className="calendar-table">
 
