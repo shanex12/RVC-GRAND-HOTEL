@@ -13,6 +13,9 @@
   z-index: 9999;
   padding: 20px;
 }
+.swal2-container {
+  z-index: 99999 !important;
+}
 
 .booking-modal {
   background: #fff;
@@ -90,11 +93,15 @@
 }
 
 .summary-box {
-  margin-top: 20px;
-  background: #ecfdf5;
-  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  border-left: 4px solid #10b981;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.summary-box p {
+  margin: 8px 0;
 }
 
 .error-box {
@@ -165,4 +172,27 @@
     transform: translateY(0);
     opacity: 1;
   }
+}
+.booking-confirm-popup {
+  border-radius: 20px !important;
+  padding: 20px !important;
+}
+
+.booking-confirm-btn {
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+
+.booking-cancel-btn {
+  border-radius: 12px !important;
+  padding: 12px 24px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
+}
+
+.swal2-container {
+  z-index: 99999 !important;
 }

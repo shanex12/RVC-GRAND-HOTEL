@@ -1,4 +1,6 @@
 import "../../styles/BookingModal.css";
+import { useState } from "react";
+import ConfirmBookingModal from "./ConfirmBookingModal";
 export default function BookingModal({
   selectedRoom,
   showBookingModal,
@@ -18,6 +20,9 @@ export default function BookingModal({
   getTodayDate,
   getMinCheckOutDate,
 }) {
+  const [showConfirm, setShowConfirm] =
+    useState(false);
+
   if (!showBookingModal || !selectedRoom) {
     return null;
   }
@@ -33,7 +38,7 @@ export default function BookingModal({
       >
         <div className="booking-modal-header">
           <h2 className="booking-modal-title">
-            ยืนยันการจองห้องที่ {selectedRoom.name}
+            รายละเอียดการจองห้องที่ {selectedRoom.name}
           </h2>
 
           <button
@@ -131,29 +136,6 @@ export default function BookingModal({
               />
             </div>
           </div>
-
-          {checkInDate && checkOutDate && (
-            <div className="summary-box">
-              <p>
-                <strong>ระยะเวลาพัก:</strong>
-                {" "}
-                {calculateNights(
-                  checkInDate,
-                  checkOutDate
-                )} คืน
-              </p>
-
-              <p>
-                <strong>ราคารวม:</strong>
-                ฿
-                {selectedRoom.price *
-                  calculateNights(
-                    checkInDate,
-                    checkOutDate
-                  )}
-              </p>
-            </div>
-          )}
         </div>
 
         {bookingError && (
@@ -174,17 +156,43 @@ export default function BookingModal({
             ✕ ยกเลิก
           </button>
 
+
           <button
             className="confirm-button"
-            onClick={handleBooking}
+            onClick={() => setShowConfirm(true)}
+
             disabled={loading}
           >
             {loading
               ? "⏳ กำลังจอง..."
-              : "✓ ยืนยันการจอง"}
+              : "✓ ยืนยัน"}
           </button>
         </div>
       </div>
+                <ConfirmBookingModal
+            show={showConfirm}
+            room={selectedRoom}
+            checkInDate={checkInDate}
+            checkOutDate={checkOutDate}
+            nights={calculateNights(
+              checkInDate,
+              checkOutDate
+            )}
+            totalPrice={
+              selectedRoom.price *
+              calculateNights(
+                checkInDate,
+                checkOutDate
+              )
+            }
+            onClose={() =>
+              setShowConfirm(false)
+            }
+            onConfirm={() => {
+              setShowConfirm(false);
+              handleBooking();
+            }}
+          />
     </div>
   );
 }

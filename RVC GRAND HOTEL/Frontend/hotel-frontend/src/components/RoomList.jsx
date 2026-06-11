@@ -239,7 +239,7 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted, tok
                             : displayStatus === 'cleaning'
                             ? '🟡 ทำความสะอาด'
                             : displayStatus === 'booked'
-                            ? '✗ จองอยู่'
+                            ? '✗ มีคนเข้าพักอยู่'
                             : '✗ ไม่พร้อมใช้งาน';
                         return <span style={badgeStyles}>{label}</span>;
                       })()}
