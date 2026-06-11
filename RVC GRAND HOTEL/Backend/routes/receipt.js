@@ -65,7 +65,13 @@ router.get("/:id", async (req, res) => {
     // ===== HEADER =====
 
     doc
-      .fontSize(30)
+      .rect(0, 0, doc.page.width, 150)
+      .fill("#0f172a");
+
+    doc.fillColor("white");
+
+    doc
+      .fontSize(34)
       .text("RVC HOTEL", {
         align: "center",
       });
@@ -79,6 +85,12 @@ router.get("/:id", async (req, res) => {
       });
 
     doc.moveDown(2);
+    doc
+      .moveTo(50, 210)
+      .lineTo(550, 210)
+      .strokeColor("#d1d5db")
+      .stroke();
+    doc.fillColor("black");
 
     // ===== DATE FORMAT =====
 
@@ -95,6 +107,8 @@ router.get("/:id", async (req, res) => {
     });
 
     // ===== INFO =====
+
+    doc.y = 240;
 
     doc.fontSize(18);
 
@@ -125,24 +139,31 @@ router.get("/:id", async (req, res) => {
     doc.moveDown(1.5);
 
     // ===== PRICE BOX =====
+    const boxY = doc.y + 20;
 
     doc
-      .roundedRect(50, 360, 500, 80, 10)
-      .stroke();
-
-    doc
-      .fontSize(22)
-      .text(
-        `ยอดชำระทั้งหมด : ${Number(
-          booking.total_price
-        ).toLocaleString()} บาท`,
-        70,
-        390
+      .roundedRect(50, boxY, 500, 80, 10)
+      .fillAndStroke(
+        "#ecfdf5",
+        "#22c55e"
       );
+
+    doc
+      .fontSize(28)
+      .fillColor("#16a34a")
+      .text(
+        `ยอดชำระทั้งหมด : ฿${Number(
+          booking.total_price
+        ).toLocaleString()}`,
+        70,
+        boxY + 28
+      );
+
+    doc.fillColor("black");
 
     // ===== FOOTER =====
 
-    doc.moveDown(4);
+    doc.y = boxY + 130;
 
     doc
       .fontSize(16)
