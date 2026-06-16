@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+*{
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8f7f4;
+  color: #333333;
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+}
+
+button {
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+input, select, textarea {
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f7fa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Placeholder Styling */
+::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+:-ms-input-placeholder {
+  color: #9ca3af;
+}
+
+::-ms-input-placeholder {
+  color: #9ca3af;
+}
+
+/* Select Dropdown */
+select {
+  background-color: #ffffff;
+  color: #000000;
+  padding: 8px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+option {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  button {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 12px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 16px;
+  }
+
+  button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,139 @@
+.room-card {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid rgba(201,162,39,.25);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.25s ease;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+.room-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+}
+.rooms-grid {
+    display: grid;
+    grid-Template-Columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 30px;
+    margin-Bottom: 40px;
+}
+
+.room-image {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.room-info {
+  padding: 25px;
+}
+
+.room-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.room-type {
+  font-size: 14px;
+  color: var(--gold);
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.amenities-box {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+
+.room-status {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.room-capacity {
+  font-size: 14px;
+  color: var(--text);
+  margin: 0 0 12px 0;
+}
+
+.price-box {
+  background: rgba(201,162,39,.08);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.price {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.price-label {
+  font-size: 12px;
+  color: #666;
+  margin-left: 5px;
+}
+
+.book-button {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(
+    135deg,
+    #c9a227,
+    #f4d03f
+  );
+  color: #111;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.book-button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+}
+
+.disabled-button {
+  width: 100%;
+  padding: 14px;
+  background-color: #ccc;
+  color: #666;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+body.dark .room-card{
+  background:#171717;
+  box-shadow:0 8px 25px rgba(0,0,0,.35);
+}
+body.dark .room-card:hover{
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.45),
+    0 0 0 1px rgba(212,175,55,.25);
+}
+
+body.dark .price-box{
+  background:rgba(212,175,55,.08);
+  border-color:#d4af37;
+}
+
+body.dark .room-capacity,
+body.dark .price-label{
+  color:#cbd5e1;
+}
