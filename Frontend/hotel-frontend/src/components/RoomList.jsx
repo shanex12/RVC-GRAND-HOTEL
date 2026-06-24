@@ -37,7 +37,7 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted, tok
         headers.Authorization = `Bearer ${authToken}`;
       }
 
-      const res = await fetch(`http://localhost:3000/api/rooms/${id}`, {
+      const res = await fetch(`/api/rooms/${id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
@@ -78,7 +78,7 @@ export default function RoomList({ rooms = [], onRoomUpdated, onRoomDeleted, tok
       if (authToken) {
         headers.Authorization = `Bearer ${authToken}`;
       }
-      const res = await fetch(`http://localhost:3000/api/rooms/${id}`, {
+      const res = await fetch(`/api/rooms/${id}`, {
         method: 'DELETE',
         headers,
       });

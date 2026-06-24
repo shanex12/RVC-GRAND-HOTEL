@@ -10,7 +10,7 @@ export default function MyBookings() {
 
   useEffect(() => {
 
-    fetch("http://localhost:3000/api/my-bookings", {
+    fetch("/api/my-bookings", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`
       }
@@ -215,7 +215,7 @@ export default function MyBookings() {
                         try {
 
                             const res = await fetch(
-                                `http://localhost:3000/api/bookings/${booking.id}/cancel`,
+                                `/api/bookings/${booking.id}/cancel`,
                                 {
                                 method: "PUT",
                                 headers: {

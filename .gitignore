@@ -1,0 +1,7 @@
+node_modules/
+Frontend/node_modules/
+Frontend/hotel-frontend/node_modules/
+Backend/node_modules/
+Backend/.env
+Backend/hotel.db
+Frontend/hotel-frontend/dist/

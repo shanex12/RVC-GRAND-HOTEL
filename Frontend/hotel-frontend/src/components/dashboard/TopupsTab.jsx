@@ -32,7 +32,7 @@ export default function TopupsTab({
             </p>
 
             <img
-              src={`http://localhost:3000/uploads/${item.slip_image}`}
+              src={`/uploads/${item.slip_image}`}
               alt="slip"
               className="slip-image"
             />
@@ -46,7 +46,7 @@ export default function TopupsTab({
                   onClick={async () => {
 
                     await fetch(
-                      `http://localhost:3000/api/topups/${item.id}/approve`,
+                      `/api/topups/${item.id}/approve`,
                       {
                         method: "PUT",
                         headers: {
@@ -89,7 +89,7 @@ export default function TopupsTab({
                     try {
 
                       await fetch(
-                        `http://localhost:3000/api/topups/${item.id}`,
+                        `/api/topups/${item.id}`,
                         {
                           method: "DELETE",
                           headers: {

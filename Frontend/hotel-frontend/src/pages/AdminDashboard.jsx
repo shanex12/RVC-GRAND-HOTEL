@@ -345,7 +345,7 @@ const loadTopups = async () => {
       }
 
       const res = await fetch(
-        "http://localhost:3000/api/topups",
+        "/api/topups",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -376,7 +376,7 @@ const loadTopups = async () => {
       }
 
     const res = await fetch(
-      'http://localhost:3000/api/activity-logs',
+      '/api/activity-logs',
       {
         headers: {
           Authorization: `Bearer ${token}`,

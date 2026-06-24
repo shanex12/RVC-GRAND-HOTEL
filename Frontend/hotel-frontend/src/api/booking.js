@@ -1,5 +1,5 @@
 
-const API = 'http://localhost:3000/api';
+const API = '/api';
 
 export async function getBookings() {
 
@@ -31,7 +31,7 @@ export const getRooms = async () => {
 };
 
 export const createBooking = async (bookingData, token) => {
-  const res = await fetch("http://localhost:3000/api/bookings", {
+  const res = await fetch("/api/bookings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

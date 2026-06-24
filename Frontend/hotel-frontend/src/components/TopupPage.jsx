@@ -27,7 +27,7 @@ export default function TopupPage() {
     formData.append("slip", slip);
 
     const res = await fetch(
-      "http://localhost:3000/api/topups",
+      "/api/topups",
       {
         method: "POST",
         headers: {

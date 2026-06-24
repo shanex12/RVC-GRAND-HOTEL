@@ -23,7 +23,7 @@ const [creditAmount, setCreditAmount] =
       const token = localStorage.getItem("token");
 
       const res = await fetch(
-        "http://localhost:3000/api/auth/users",
+        "/api/auth/users",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -47,7 +47,7 @@ const [creditAmount, setCreditAmount] =
     const token = localStorage.getItem("token");
 
     await fetch(
-      `http://localhost:3000/api/auth/users/${id}/role`,
+      `/api/auth/users/${id}/role`,
       {
         method: "PUT",
         headers: {
@@ -79,7 +79,7 @@ const updateRole = async (id, role) => {
       localStorage.getItem("token");
 
     const res = await fetch(
-      `http://localhost:3000/api/auth/users/${id}/role`,
+      `/api/auth/users/${id}/role`,
       {
         method: "PUT",
         headers: {
@@ -117,7 +117,7 @@ const deleteUser = async (id) => {
     const token = localStorage.getItem("token");
 
     await fetch(
-      `http://localhost:3000/api/auth/users/${id}`,
+      `/api/auth/users/${id}`,
       {
         method: "DELETE",
         headers: {
@@ -152,7 +152,7 @@ const submitCredit = async () => {
       localStorage.getItem("token");
 
     await fetch(
-      `http://localhost:3000/api/auth/users/${selectedUser.id}/credit`,
+      `/api/auth/users/${selectedUser.id}/credit`,
       {
         method: "PUT",
         headers: {

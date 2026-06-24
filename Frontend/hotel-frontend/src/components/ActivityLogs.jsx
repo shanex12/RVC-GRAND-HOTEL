@@ -24,7 +24,7 @@ const loadLogs = async () => {
 const token = localStorage.getItem("token");
 
 const res = await fetch(
-  "http://localhost:3000/api/activity-logs",
+  "/api/activity-logs",
   {
     headers: {
       Authorization: `Bearer ${token}`,

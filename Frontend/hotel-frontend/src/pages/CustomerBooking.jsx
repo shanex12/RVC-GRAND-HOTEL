@@ -153,7 +153,7 @@ const loadRooms = async () => {
     const roomData = await getRooms();
 
     const bookingRes = await fetch(
-      "http://localhost:3000/api/bookings/customer-active",
+      "/api/bookings/customer-active",
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -258,7 +258,7 @@ const calculateNights = (checkIn, checkOut) => {
 
       setTimeout(() => {
         window.open(
-          `http://localhost:3000/api/receipt/${result.id}`,
+          `/api/receipt/${result.id}`,
           "_blank"
         );
       }, 1000);
@@ -296,7 +296,7 @@ const handleTopUpCredit = async () => {
       formData.append("slip", topupSlip);
 
       const res = await fetch(
-        "http://localhost:3000/api/topups",
+        "/api/topups",
         {
           method: "POST",
           headers: {

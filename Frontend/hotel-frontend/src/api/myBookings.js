@@ -1,7 +1,7 @@
 export async function getMyBookings(token) {
 
   const res = await fetch(
-    "http://localhost:3000/api/my-bookings",
+    "/api/my-bookings",
     {
       headers: {
         Authorization: `Bearer ${token}`,

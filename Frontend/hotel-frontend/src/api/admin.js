@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000/api";
+const API_URL = "/api";
 
 // ดึงการจองทั้งหมด
 export async function getActiveBookings(token) {

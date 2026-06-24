@@ -1,6 +1,6 @@
 export const getMyTopups = async (token) => {
   const res = await fetch(
-    "http://localhost:3000/api/topups/my",
+    "/api/topups/my",
     {
       headers: {
         Authorization: `Bearer ${token}`,
